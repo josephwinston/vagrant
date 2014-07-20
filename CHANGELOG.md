@@ -1,19 +1,747 @@
-## 1.3.6 (unreleased)
+## 1.6.4 (unreleased)
 
 IMPROVEMENTS:
 
+  - guests/nixos: Added better NFS support. [GH-3983]
+
+BUG FIXES:
+
+  - commands/package: base package won't crash with exception [GH-4017]
+  - guests/freebsd: Rsync install for rsync synced folders work on
+      FreeBSD 10. [GH-4008]
+  - guests/windows: Reboot after hostname change. [GH-3987]
+  - hosts/windows: RDP command works without crash. [GH-3962]
+  - provisioners/puppet: Properly escape facter variables for PowerShell
+      on Windows guests. [GH-3959]
+
+## 1.6.3 (May 29, 2014)
+
+FEATURES:
+
+  - **New Guest:** NixOS - Supports changing host names and setting
+      networks. [GH-3830]
+
+IMPROVEMENTS:
+
+  - core: A CA path can be specified in the Vagrantfile, not just
+      a file, when using a custom CA. [GH-3848]
+  - commands/box/add: `--capath` flag added for custom CA path. [GH-3848]
+  - commands/halt: Halt in reverse order of up, like destroy. [GH-3790]
+  - hosts/linux: Uses rdesktop to RDP into machines if available. [GH-3845]
+  - providers/docker: Support for UDP forwarded ports. [GH-3886]
+  - provisioners/salt: Works on Windows guests. [GH-3825]
+
+BUG FIXES:
+
+  - core: Provider plugins more easily are compatible with global-status
+      and should show less stale data. [GH-3808]
+  - core: When setting a synced folder, it will assume it is not disabled
+      unless explicitly specified. [GH-3783]
+  - core: Ignore UDP forwarded ports for collision detection. [GH-3859]
+  - commands/package: Package with `--base` for VirtualBox doesn't
+      crash. [GH-3827]
+  - guests/solaris11: Fix issue with public network and DHCP on newer
+      Solaris releases. [GH-3874]
+  - guests/windows: Private networks with static IPs work when there
+      is more than one. [GH-3818]
+  - guests/windows: Don't look up a forwarded port for WinRM if we're
+      not accessing the local host. [GH-3861]
+  - guests/windows: Fix errors with arg lists that are too long over
+      WinRM in some cases. [GH-3816]
+  - guests/windows: Powershell exits with proper exit code, fixing
+  -   issues where non-zero exit codes weren't properly detected. [GH-3922]
+  - hosts/windows: Don't execute mstsc using PowerShell since it doesn't
+      exit properly. [GH-3837]
+  - hosts/windows: For RDP, don't remove the Tempfile right away. [GH-3875]
+  - providers/docker: Never do graceful shutdown, always use
+      `docker stop`. [GH-3798]
+  - providers/docker: Better error messaging when SSH is not ready
+      direct to container. [GH-3763]
+  - providers/docker: Don't port map SSH port if container doesn't
+      support SSH. [GH-3857]
+  - providers/docker: Proper SSH info if using native driver. [GH-3799]
+  - providers/docker: Verify host VM has SSH ready. [GH-3838]
+  - providers/virtualbox: On Windows, check `VBOX_MSI_INSTALL_PATH`
+      for VBoxManage path as well. [GH-3852]
+  - provisioners/puppet: Fix setting facter vars with Windows
+      guests. [GH-3776]
+  - provisioners/puppet: On Windows, run in elevated prompt. [GH-3903]
+  - guests/darwin: Respect mount options for NFS. [GH-3791]
+  - guests/freebsd: Properly register the rsync_pre capability
+  - guests/windows: Certain executed provisioners won't leave output
+      and exit status behind. [GH-3729]
+  - synced\_folders/rsync: `rsync__chown` can be set to `false` to
+      disable recursive chown after sync. [GH-3810]
+  - synced\_folders/rsync: Use a proper msys path if not in
+      Cygwin. [GH-3804]
+  - synced\_folders/rsync: Don't append args infinitely, clear out
+      arg list on each run. [GH-3864]
+
+PLUGIN AUTHOR CHANGES:
+
+  - Providers can now implement the `rdp_info` provider capability
+      to get proper info for `vagrant rdp` to function.
+
+## 1.6.2 (May 12, 2014)
+
+IMPROVEMENTS:
+
+  - core: Automatically forward WinRM port if communicator is
+      WinRM. [GH-3685]
+  - command/rdp: Args after "--" are passed directly through to the
+      RDP client. [GH-3686]
+  - providers/docker: `build_args` config to specify extra args for
+      `docker build`. [GH-3684]
+  - providers/docker: Can specify options for the build dir synced
+      folder when a host VM is in use. [GH-3727]
+  - synced\_folders/nfs: Can tell Vagrant not to handle exporting
+      by setting `nfs_export: false` [GH-3636]
+
+BUG FIXES:
+
+  - core: Hostnames can be one character. [GH-3713]
+  - core: Don't lock machines on SSH actions. [GH-3664]
+  - core: Fixed crash when adding a box from Vagrant Cloud that was the
+      same name as a real directory. [GH-3732]
+  - core: Parallelization is more stable, doesn't crash due to to
+      bad locks. [GH-3735]
+  - commands/package: Don't double included files in package. [GH-3637]
+  - guests/linux: Rsync chown ignores symlinks. [GH-3744]
+  - provisioners/shell: Fix shell provisioner config validation when the
+    `binary` option is set to false [GH-3712]
+  - providers/docker: default proxy VM won't use HGFS [GH-3687]
+  - providers/docker: fix container linking [GH-3719]
+  - providers/docker: Port settings expose to host properly. [GH-3723]
+  - provisioners/puppet: Separate module paths with ';' on Windows. [GH-3731]
+  - synced\_folders\rsync: Copy symlinks as real files. [GH-3734]
+  - synced\_folders/rsync: Remove non-portable '-v' flag from chown. [GH-3743]
+
+## 1.6.1 (May 7, 2014)
+
+IMPROVEMENTS:
+
+  - **New guest: Linux Mint** is now properly detected. [GH-3648]
+
+BUG FIXES:
+
+  - core: Global control works from directories that don't have a
+      Vagrantfile.
+  - core: Plugins that define config methods that collide with Ruby Kernel/Object
+  -   methods are merged properly. [GH-3670]
+  - commands/docker-run: `--help` works. [GH-3698]
+  - commands/package: `--base` works without crashing for VirtualBox.
+  - commands/reload: If `--provision` is specified, force provisioning. [GH-3657]
+  - guests/redhat: Fix networking issues with CentOS. [GH-3649]
+  - guests/windows: Human error if WinRM not in use to configure networks. [GH-3651]
+  - guests/windows: Puppet exit code 2 doesn't cause Windows to raise
+      an error. [GH-3677]
+  - providers/docker: Show proper error message when on Linux. [GH-3654]
+  - providers/docker: Proxy VM works properly even if default provider
+      environmental variable set to "docker" [GH-3662]
+  - providers/docker: Put sync folders in `/var/lib/docker` because
+      it usually has disk space. [GH-3680]
+  - synced\_folders/rsync: Create the directory before syncing.
+
+## 1.6.0 (May 6, 2014)
+
+BACKWARDS INCOMPATIBILITIES:
+
+  - Deprecated: `halt_timeout` and `halt_check_interval` settings for
+      SmartOS, Solaris, and Solaris11 guests. These will be fully
+      removed in 1.7. A warning will be shown if they're in use in
+      1.6.
+
+FEATURES:
+
+  - **New guest: Windows**. Vagrant now fully supports Windows as a guest
+      VM. WinRM can be used for communication (or SSH), and the shell
+      provisioner, Chef, and Puppet all work with Windows VMs.
+  - **New command: global-status**. This command shows the state of every
+      created Vagrant environment on the system for that logged in user.
+  - **New command: rdp**. This command connects to the running machine
+      via the Remote Desktop Protocol.
+  - **New command: version**. This outputs the currently installed version
+      as well as the latest version of Vagrant available.
+  - **New provider: Docker**. This provider will back your development
+      environments with Docker containers. If you're not on Linux, it will
+      automatically spin up a VM for you on any provider. You can even
+      specify a specific Vagrantfile to use as the Docker container host.
+  - Control Vagrant environments from any directory. Using the UUIDs given
+      in `vagrant global-status`, you can issue commands from anywhere on
+      your machine, not just that environment's directory. Example:
+      `vagrant destroy UUID` from anywhere.
+  - Can now specify a `post_up_message` in your Vagrantfile that is shown
+      after a `vagrant up`. This is useful for putting some instructions of how
+      to use the development environment.
+  - Can configure provisioners to run "once" or "always" (defaults to "once"),
+      so that subsequent `vagrant up` or `reload` calls will always run a
+      provisioner. [GH-2421]
+  - Multi-machine environments can specify an "autostart" option (default
+      to true). `vagrant up` starts all machines that have enabled autostart.
+  - Vagrant is smarter about choosing a default provider. If
+    `VAGRANT_DEFAULT_PROVIDER` is set, it still takes priority, but otherwise
+    Vagrant chooses a "best" provider.
+
+IMPROVEMENTS:
+
+  - core: Vagrant locks machine access to one Vagrant process at a time.
+      This will protect against two simultaneous `up` actions happening
+      on the same environment.
+  - core: Boxes can be compressed with LZMA now as well.
+  - commands/box/remove: Warns if the box appears to be in use by an
+      environment. Can be forced with `--force`.
+  - commands/destroy: Exit codes changes. 0 means everything succeeded.
+      1 means everything was declined. 2 means some were declined. [GH-811]
+  - commands/destroy: Doesn't require box to exist anymore. [GH-1629]
+  - commands/init: force flag. [GH-3564]
+  - commands/init: flag for minimal Vagrantfile creation (no comments). [GH-3611]
+  - commands/rsync-auto: Picks up and syncs provisioner folders if
+      provisioners are backed by rsync.
+  - commands/rsync-auto: Detects when new synced folders were added and warns
+      user they won't be synced until `vagrant reload`.
+  - commands/ssh-config: Works without a target in multi-machine envs [GH-2844]
+  - guests/freebsd: Support for virtio interfaces. [GH-3082]
+  - guests/openbsd: Support for virtio interfaces. [GH-3082]
+  - guests/redhat: Networking works for upcoming RHEL7 release. [GH-3643]
+  - providers/hyperv: Implement `vagrant ssh -c` support. [GH-3615]
+  - provisioners/ansible: Support for Ansible Vault. [GH-3338]
+  - provisioners/ansible: Show Ansible command executed. [GH-3628]
+  - provisioners/salt: Colorize option. [GH-3603]
+  - provisioners/salt: Ability to specify log level. [GH-3603]
+  - synced\_folders: nfs: Improve sudo commands used to make them
+      sudoers friendly. Examples in docs. [GH-3638]
+
+BUG FIXES:
+
+  - core: Adding a box from a network share on Windows works again. [GH-3279]
+  - commands/plugin/install: Specific versions are now locked in.
+  - commands/plugin/install: If insecure RubyGems.org is specified as a
+      source, use that. [GH-3610]
+  - commands/rsync-auto: Interrupt exits properly. [GH-3552]
+  - commands/rsync-auto: Run properly on Windows. [GH-3547]
+  - communicators/ssh: Detect if `config.ssh.shell` is invalid. [GH-3040]
+  - guests/debian: Can set hostname if hosts doesn't contain an entry
+      already for 127.0.1.1 [GH-3271]
+  - guests/linux: For `read_ip_address` capability, set `LANG=en` so
+      it works on international systems. [GH-3029]
+  - providers/virtualbox: VirtalBox detection works properly again on
+      Windows when the `VBOX_INSTALL_PATH` has multiple elements. [GH-3549]
+  - providers/virtualbox: Forcing MAC address on private network works
+      properly again. [GH-3588]
+  - provisioners/chef-solo: Fix Chef version checking to work with prerelease
+      versions. [GH-3604]
+  - provisioners/salt: Always copy keys and configs on provision. [GH-3536]
+  - provisioners/salt: Install args should always be present with bootstrap.
+  - provisioners/salt: Overwrite keys properly on subsequent provisions [GH-3575]
+  - provisioners/salt: Bootstrap uses raw GitHub URL rather than subdomain. [GH-3583]
+  - synced\_folders/nfs: Acquires a process-level lock so exports don't
+      collide with Vagrant running in parallel.
+  - synced\_folders/nfs: Implement usability check so that hosts that
+      don't support NFS get an error earlier. [GH-3625]
+  - synced\_folders/rsync: Add UserKnownHostsFile option to not complain. [GH-3511]
+  - synced\_folders/rsync: Proxy command is used properly if set. [GH-3553]
+  - synced\_folders/rsync: Owner/group settings are respected. [GH-3544]
+  - synced\_folders/smb: Passwords with symbols work. [GH-3642]
+
+PLUGIN AUTHOR CHANGES:
+
+  - **New host capability:** "rdp\_client". This capability gets the RDP connection
+      info and must launch the RDP client on the system.
+  - core: The "Call" middleware now merges the resulting middleware stack
+      into the current stack, rather than running it as a separate stack.
+      The result is that ordering is preserved.
+  - core: The "Message" middleware now takes a "post" option that will
+      output the message on the return-side of the middleware stack.
+  - core: Forwarded port collision repair works when Vagrant is run in
+      parallel with other Vagrant processes. [GH-2966]
+  - provider: Providers can now specify that boxes are optional. This lets
+      you use the provider without a `config.vm.box`. Useful for providers like
+      AWS or Docker.
+  - provider: A new class-level `usable?` method can be implemented on the
+      provider implementation. This returns or raises an error when the
+      provider is not usable (i.e. VirtualBox isn't installed for VirtualBox)
+  - synced\_folders: New "disable" method for removing synced folders from
+      a running machine.
+
+## 1.5.4 (April 21, 2014)
+
+IMPROVEMENTS:
+
+  - commands/box/list: Doesn't parse Vagrantfile. [GH-3502]
+  - providers/hyperv: Implement the provision command. [GH-3494]
+
+BUG FIXES:
+
+  - core: Allow overriding of the default SSH port. [GH-3474]
+  - commands/box/remove: Make output nicer. [GH-3470]
+  - commands/box/update: Show currently installed version. [GH-3467]
+  - command/rsync-auto: Works properly on Windows.
+  - guests/coreos: Fix test for Docker daemon running.
+  - guests/linux: Fix test for Docker provisioner whether Docker is
+      running.
+  - guests/linux: Fix regression where rsync owner/group stopped
+      working. [GH-3485]
+  - provisioners/docker: Fix issue where we weren't waiting for Docker
+      to properly start before issuing commands. [GH-3482]
+  - provisioners/shell: Better validation of master config path, results
+      in no more stack traces at runtime. [GH-3505]
+
+## 1.5.3 (April 14, 2014)
+
+IMPROVEMENTS:
+
+  - core: 1.5 upgrade code gives users a chance to quit. [GH-3212]
+  - commands/rsync-auto: An initial sync is done before watching folders. [GH-3327]
+  - commands/rsync-auto: Exit immediately if there are no paths to watch.
+      [GH-3446]
+  - provisioners/ansible: custom vars/hosts files can be added in
+      .vagrant/provisioners/ansible/inventory/ directory [GH-3436]
+
+BUG FIXES:
+
+  - core: Randomize some filenames internally to improve the parallelism
+      of Vagrant. [GH-3386]
+  - core: Don't error if network problems cause box update check to
+      fail [GH-3391]
+  - core: `vagrant` on Windows cmd.exe doesn't always exit with exit
+      code zero. [GH-3420]
+  - core: Adding a box from a network share has nice error on Windows. [GH-3279]
+  - core: Setting an ID on a provisioner now works. [GH-3424]
+  - core: All synced folder paths containing symlinks are fully
+      expanded before sharing. [GH-3444]
+  - core: Windows no longer sees "process not started" errors rarely.
+  - commands/box/repackage: Works again. [GH-3372]
+  - commands/box/update: Update should check for updates from latest
+      version. [GH-3452]
+  - commands/package: Nice error if includes contain symlinks. [GH-3200]
+  - commands/rsync-auto: Don't crash if the machine can't be communicated
+      to. [GH-3419]
+  - communicators/ssh: Throttle connection attempt warnings if the warnings
+      are the same. [GH-3442]
+  - guests/coreos: Docker provisioner works. [GH-3425]
+  - guests/fedora: Fix hostname setting. [GH-3382]
+  - guests/fedora: Support predictable network interface names for
+      public/private networks. [GH-3207]
+  - guests/linux: Rsync folders have proper group if owner not set. [GH-3223]
+  - guests/linux: If SMB folder mounting fails, the password will no
+      longer be shown in plaintext in the output. [GH-3203]
+  - guests/linux: SMB mount works with passwords with symbols. [GH-3202]
+  - providers/hyperv: Check for PowerShell features. [GH-3398]
+  - provisioners/docker: Don't automatically generate container name with
+      a forward slash. [GH-3216]
+  - provisioners/shell: Empty shell scripts don't cause errors. [GH-3423]
+  - synced\_folders/smb: Only set the chmod properly by default on Windows
+      if it isn't already set. [GH-3394]
+  - synced\_folders/smb: Sharing folders with odd characters like parens
+      works properly now. [GH-3405]
+
+## 1.5.2 (April 2, 2014)
+
+IMPROVEMENTS:
+
+  - **New guest:** SmartOS
+  - core: Change wording from "error" to "warning" on SSH retry output
+    to convey actual meaning.
+  - commands/plugin: Listing plugins now has machine-readable output. [GH-3293]
+  - guests/omnios: Mount NFS capability [GH-3282]
+  - synced\_folders/smb: Verify PowerShell v3 or later is running. [GH-3257]
+
+BUG FIXES:
+
+  - core: Vagrant won't collide with newer versions of Bundler [GH-3193]
+  - core: Allow provisioner plugins to not have a config class. [GH-3272]
+  - core: Removing a specific box version that doesn't exist doesn't
+      crash Vagrant. [GH-3364]
+  - core: SSH commands are forced to be ASCII.
+  - core: private networks with DHCP type work if type parameter is
+      a string and not a symbol. [GH-3349]
+  - core: Converting to cygwin path works for folders with spaces. [GH-3304]
+  - core: Can add boxes with spaces in their path. [GH-3306]
+  - core: Prerelease plugins installed are locked to that prerelease
+      version. [GH-3301]
+  - core: Better error message when adding a box with a malformed version. [GH-3332]
+  - core: Fix a rare issue where vagrant up would complain it couldn't
+      check version of a box that doesn't exist. [GH-3326]
+  - core: Box version constraint can't be specified with old-style box. [GH-3260]
+  - commands/box: Show versions when listing. [GH-3316]
+  - commands/box: Outdated check can list local boxes that are newer. [GH-3321]
+  - commands/status: Machine readable output contains the target. [GH-3218]
+  - guests/arch: Reload udev rules after network change. [GH-3322]
+  - guests/debian: Changing host name works properly. [GH-3283]
+  - guests/suse: Shutdown works correctly on SLES [GH-2775]
+  - hosts/linux: Don't hardcode `exportfs` path. Now searches the PATH. [GH-3292]
+  - providers/hyperv: Resume command works properly. [GH-3336]
+  - providers/virtualbox: Add missing translation for stopping status. [GH-3368]
+  - providers/virtualbox: Host-only networks set cableconnected property
+      to "yes" [GH-3365]
+  - provisioners/docker: Use proper flags for 0.9. [GH-3356]
+  - synced\_folders/rsync: Set chmod flag by default on Windows. [GH-3256]
+  - synced\_folders/smb: IDs of synced folders are hashed to work better
+      with VMware. [GH-3219]
+  - synced\_folders/smb: Properly remove existing folders with the
+      same name. [GH-3354]
+  - synced\_folders/smb: Passwords with symbols now work. [GH-3242]
+  - synced\_folders/smb: Exporting works for non-english locale Windows
+      machines. [GH-3251]
+
+## 1.5.1 (March 13, 2014)
+
+IMPROVEMENTS:
+
+  - guests/tinycore: Will now auto-install rsync.
+  - synced\_folders/rsync: rsync-auto will not watch filesystem for
+    excluded paths. [GH-3159]
+
+BUG FIXES:
+
+  - core: V1 Vagrantfiles can upgrade provisioners properly. [GH-3092]
+  - core: Rare EINVAL errors on box adding are gone. [GH-3094]
+  - core: Upgrading the home directory for Vagrant 1.5 uses the Vagrant
+    temp dir. [GH-3095]
+  - core: Assume a box isn't metadata if it exceeds 20 MB. [GH-3107]
+  - core: Asking for input works even in consoles that don't support
+    hiding input. [GH-3119]
+  - core: Adding a box by path in Cygwin on Windos works. [GH-3132]
+  - core: PowerShell scripts work when they're in a directory with
+    spaces. [GH-3100]
+  - core: If you add a box path that doesn't exist, error earlier. [GH-3091]
+  - core: Validation on forwarded ports to make sure they're between
+    0 and 65535. [GH-3187]
+  - core: Downloads with user/password use the curl `-u` flag. [GH-3183]
+  - core: `vagrant help` no longer loads the Vagrantfile. [GH-3180]
+  - guests/darwin: Fix an exception when configuring networks. [GH-3143]
+  - guests/linux: Only chown folders/files in rsync if they don't
+    have the proper owner. [GH-3186]
+  - hosts/linux: Unusual sed delimiter to avoid conflicts. [GH-3167]
+  - providers/virtualbox: Make more internal interactions with VBoxManage
+    retryable to avoid spurious VirtualBox errors. [GH-2831]
+  - providers/virtualbox: Import progress works again on Windows.
+  - provisioners/ansible: Request SSH info within the provision method,
+    when we know its available. [GH-3111]
+  - synced\_folders/rsync: owner/group settings work. [GH-3163]
+
+## 1.5.0 (March 10, 2014)
+
+BREAKING CHANGES:
+
+  - provisioners/ansible: the machine name (taken from Vagrantfile) is now
+    set as default limit to ensure that vagrant provision steps only
+    affect the expected machine.
+
+DEPRECATIONS:
+
+  - provisioners/chef-solo: The "nfs" setting has been replaced by
+    `synced_folder_type`. The "nfs" setting will be removed in the next
+    version.
+  - provisioners/puppet: The "nfs" setting has been replaced by
+    `synced_folder_type`. The "nfs" setting will be removed in the next
+    version.
+
+FEATURES:
+
+  - **New provider:** Hyper-V. If you're on a Windows machine with Hyper-V
+    enabled, Vagrant can now manage Hyper-V virtual machines out of the box.
+  - **New guest:** Funtoo (change host name and networks supported)
+  - **New guest:** NetBSD
+  - **New guest:** TinyCore Linux. This allows features such as networking,
+    halting, rsync and more work with Boot2Docker.
+  - **New synced folder type:** rsync - Does a one-time one-directional sync
+    to the guest machine. New commands `vagrant rsync` and `vagrant rsync-auto`
+    can resync the folders.
+  - **New synced folder type:** SMB- Allows bi-directional folder syncing
+    using SMB on Windows hosts with any guest.
+  - Password-based SSH authentication. This lets you use almost any off-the-shelf
+    virtual machine image with Vagrant. Additionally, Vagrant will automatically
+    insert a keypair into the machine.
+  - Plugin versions can now be constrained to a range of versions. Example:
+    `vagrant plugin install foo --plugin-version "> 1.0, < 1.1"`
+  - Host-specific operations now use a "host capabilities" system much like
+    guests have used "guest capabilities" for a few releases now. This allows
+    plugin developers to create pluggable host-specific capabilities and makes
+    further integrating Vagrant with new operating systems even easier.
+  - You can now override provisioners within sub-VM configuration and
+    provider overrides. See documentation for more info. [GH-1113]
+  - providers/virtualbox: Provider-specific configuration `cpus` can be used
+    to set the number of CPUs on the VM [GH-2800]
+  - provisioners/docker: Can now build images using `docker build`. [GH-2615]
+
+IMPROVEMENTS:
+
+  - core: Added "error-exit" type to machine-readable output which contains
+    error information that caused a non-zero exit status. [GH-2999]
+  - command/destroy: confirmation will re-ask question if bad input. [GH-3027]
+  - guests/solaris: More accurate Solaris >= 11, < 11 detection. [GH-2824]
+  - provisioners/ansible: Generates a single inventory file, rather than
+    one per machine. See docs for more info. [GH-2991]
+  - provisioners/ansible: SSH forwarding support. [GH-2952]
+  - provisioners/ansible: Multiple SSH keys can now be attempted [GH-2952]
+  - provisioners/ansible: Disable SSH host key checking by default,
+    which improves the experience. We believe this is a sane default
+    for ephemeral dev machines.
+  - provisioners/chef-solo: New config `synced_folder_type` replaces the
+    `nfs` option. This can be used to set the synced folders the provisioner
+    needs to any type. [GH-2709]
+  - provisioners/chef-solo: `roles_paths` can now be an array of paths in
+    Chef 11.8.0 and newer. [GH-2975]
+  - provisioners/docker: Can start a container without daemonization.
+  - provisioners/docker: Started containers are given names. [GH-3051]
+  - provisioners/puppet: New config `synced_folder_type` replaces the
+    `nfs` option. This can be used to set the synced folders the provisioner
+    needs to any type. [GH-2709]
+  - commands/plugin: `vagrant plugin update` will now update all installed
+    plugins, respecting any constraints set.
+  - commands/plugin: `vagrant plugin uninstall` can now uninstall multiple
+    plugins.
+  - commands/plugin: `vagrant plugin install` can now install multiple
+    plugins.
+  - hosts/redhat: Recognize Korora OS. [GH-2869]
+  - synced\_folders/nfs: If the guest supports it, NFS clients will be
+    automatically installed in the guest.
+
+BUG FIXES:
+
+  - core: If an exception was raised while attempting to connect to SSH
+    for the first time, it would get swallowed. It is properly raised now.
+  - core: Plugin installation does not fail if your local gemrc file has
+    syntax errors.
+  - core: Plugins that fork within certain actions will no longer hang
+    indefinitely. [GH-2756]
+  - core: Windows checks home directory permissions more correctly to
+    warn of potential issues.
+  - core: Synced folders set to the default synced folder explicitly won't
+    be deleted. [GH-2873]
+  - core: Static IPs can end in ".1". A warning is now shown. [GH-2914]
+  - core: Adding boxes that have directories in them works on Windows.
+  - core: Vagrant will not think provisioning is already done if
+    the VM is manually deleted outside of Vagrant.
+  - core: Box file checksums of large files works properly on Windows.
+    [GH-3045]
+  - commands/box: Box add `--force` works with `--provider` flag. [GH-2757]
+  - commands/box: Listing boxes with machine-readable output crash is gone.
+  - commands/plugin: Plugin installation will fail if dependencies conflict,
+    rather than at runtime.
+  - commands/ssh: When using `-c` on Windows, no more TTY errors.
+  - commands/ssh-config: ProxyCommand is included in output if it is
+    set. [GH-2950]
+  - guests/coreos: Restart etcd after configuring networks. [GH-2852]
+  - guests/linux: Don't chown VirtualBox synced folders if mounting
+    as readonly. [GH-2442]
+  - guests/redhat: Set hostname to FQDN, per the documentation for RedHat.
+    [GH-2792]
+  - hosts/bsd: Don't invoke shell for NFS sudo calls. [GH-2808]
+  - hosts/bsd: Sort NFS exports to avoid false validation errors. [GH-2927]
+  - hosts/bsd: No more checkexports NFS errors if you're sharing the
+    same directory. [GH-3023]
+  - hosts/gentoo: Look for systemctl in `/usr/bin` [GH-2858]
+  - hosts/linux: Properly escape regular expression to prune NFS exports,
+    allowing VMware to work properly. [GH-2934]
+  - hosts/opensuse: Start NFS server properly. [GH-2923]
+  - providers/virtualbox: Enabling internal networks by just setting "true"
+    works properly. [GH-2751]
+  - providers/virtualbox: Make more internal interactions with VBoxManage
+    retryable to avoid spurious VirtualBox errors. [GH-2831]
+  - providers/virtualbox: Config validation catches invalid keys. [GH-2843]
+  - providers/virtualbox: Fix network adapter configuration issue if using
+    provider-specific config. [GH-2854]
+  - providers/virtualbox: Bridge network adapters always have their
+    "cable connected" properly. [GH-2906]
+  - provisioners/chef: When chowning folders, don't follow symlinks.
+  - provisioners/chef: Encrypted data bag secrets also in Chef solo are
+    now uploaded to the provisioning path to avoid perm issues. [GH-2845]
+  - provisioners/chef: Encrypted data bag secret is removed from the
+    machine before and after provisioning also with Chef client. [GH-2845]
+  - provisioners/chef: Set `encrypted_data_bag_secret` on the VM to `nil`
+    if the secret is not specified. [GH-2984]
+  - provisioners/chef: Fix loading of the custom configure file. [GH-876]
+  - provisioners/docker: Only add SSH user to docker group if the user
+    isn't already in it. [GH-2838]
+  - provisioners/docker: Configuring autostart works properly with
+    the newest versions of Docker. [GH-2874]
+  - provisioners/puppet: Append default module path to the module paths
+    always. [GH-2677]
+  - provisioners/salt: Setting pillar data doesn't require `deep_merge`
+    plugin anymore. [GH-2348]
+  - provisioners/salt: Options can now set install type and install args.
+    [GH-2766]
+  - provisioners/salt: Fix case when salt would say "options only allowed
+    before install arguments" [GH-3005]
+  - provisioners/shell: Error if script is encoded incorrectly. [GH-3000]
+  - synced\_folders/nfs: NFS entries are pruned on every `vagrant up`,
+    if there are any to prune. [GH-2738]
+
+## 1.4.3 (January 2, 2014)
+
+BUG FIXES:
+
+  - providers/virtualbox: `vagrant package` works properly again. [GH-2739]
+
+## 1.4.2 (December 31, 2013)
+
+IMPROVEMENTS:
+
+  - guests/linux: emit upstart event when NFS folders are mounted. [GH-2705]
+  - provisioners/chef-solo: Encrypted data bag secret is removed from the
+    machine after provisioning. [GH-2712]
+
+BUG FIXES:
+
+  - core: Ctrl-C no longer raises "trap context" exception.
+  - core: The version for `Vagrant.configure` can now be an int. [GH-2689]
+  - core: `Vagrant.has_plugin?` tries to use plugin's gem name before
+    registered plugin name [GH-2617]
+  - core: Fix exception if an EOFError was somehow raised by Ruby while
+    checking a box checksum. [GH-2716]
+  - core: Better error message if your plugin state file becomes corrupt
+    somehow. [GH-2694]
+  - core: Box add will fail early if the box already exists. [GH-2621]
+  - hosts/bsd: Only run `nfsd checkexports` if there is an exports file.
+    [GH-2714]
+  - commands/plugin: Fix exception that could happen rarely when installing
+    a plugin.
+  - providers/virtualbox: Error when packaging if the package already exists
+    _before_ the export is done. [GH-2380]
+  - providers/virtualbox: NFS with static IP works even if VirtualBox
+    guest additions aren't installed (regression). [GH-2674]
+  - synced\_folders/nfs: sudo will only ask for password one at a time
+    when using a parallel provider [GH-2680]
+
+## 1.4.1 (December 18, 2013)
+
+IMPROVEMENTS:
+
+  - hosts/bsd: check NFS exports file for issues prior to exporting
+  - provisioners/ansible: Add ability to use Ansible groups in generated
+    inventory [GH-2606]
+  - provisioners/docker: Add support for using the provisioner with RedHat
+    based guests [GH-2649]
+  - provisioners/docker: Remove "Docker" prefix from Client and Installer
+    classes [GH-2641]
+
+BUG FIXES:
+
+  - core: box removal of a V1 box works
+  - core: `vagrant ssh -c` commands are now executed in the context of
+    a login shell (regression). [GH-2636]
+  - core: specifying `-t` or `-T` to `vagrant ssh -c` as extra args
+    will properly enable/disable a TTY for OpenSSH. [GH-2618]
+  - commands/init: Error if can't write Vagrantfile to directory. [GH-2660]
+  - guests/debian: fix `use_dhcp_assigned_default_route` to work properly.
+    [GH-2648]
+  - guests/debian,ubuntu: fix change\_host\_name for FQDNs with trailing
+    dots [GH-2610]
+  - guests/freebsd: configuring networks in the guest works properly
+    [GH-2620]
+  - guests/redhat: fix configure networks bringing down interfaces that
+    don't exist. [GH-2614]
+  - providers/virtualbox: Don't override NFS exports for all VMs when
+    coming up. [GH-2645]
+  - provisioners/ansible: Array arguments work for raw options [GH-2667]
+  - provisioners/chef-client: Fix node/client deletion when node\_name is not
+    set. [GH-2345]
+  - provisioners/chef-solo: Force remove files to avoid cases where
+    a prompt would be shown to users. [GH-2669]
+  - provisioners/puppet: Don't prepend default module path for Puppet
+    in case Puppet is managing its own paths. [GH-2677]
+
+## 1.4.0 (December 9, 2013)
+
+FEATURES:
+
+  - New provisioner: Docker. Install Docker, pull containers, and run
+    containers easier than ever.
+  - Machine readable output. Vagrant now has machine-friendly output by
+    using the `--machine-readable` flag.
+  - New plugin type: synced folder implementation. This allows new ways of
+    syncing folders to be added as plugins to Vagrant.
+  - The `Vagrant.require_version` function can be used at the top of a Vagrantfile
+    to enforce a minimum/maximum Vagrant version.
+  - Adding boxes via `vagrant box add` and the Vagrantfile both support
+    providing checksums of the box files.
+  - The `--debug` flag can be specified on any command now to get debug-level
+    log output to ease reporting bugs.
+  - You can now specify a memory using `vb.memory` setting with VirtualBox.
+  - Plugin developers can now hook into `environment_plugins_loaded`, which is
+    executed after plugins are loaded but before Vagrantfiles are parsed.
+  - VirtualBox internal networks are now supported. [GH-2020]
+
+IMPROVEMENTS:
+
+  - core: Support resumable downloads [GH-57]
+  - core: owner/group of shared folders can be specified by integers. [GH-2390]
+  - core: the VAGRANT\_NO\_COLOR environmental variable may be used to enable
+    `--no-color` mode globally. [GH-2261]
+  - core: box URL and add date is tracked and shown if `-i` flag is
+    specified for `vagrant box list` [GH-2327]
+  - core: Multiple SSH keys can be specified with `config.ssh.private_key_path`
+    [GH-907]
+  - core: `config.vm.box_url` can be an array of URLs. [GH-1958]
+  - commands/box/add: Can now specify a custom CA cert for verifying
+    certs from a custom CA. [GH-2337]
+  - commands/box/add: Can now specify a client cert when downloading a
+    box. [GH-1889]
+  - commands/init: Add `--output` option for specifing output path, or
+    "-" for stdin. [GH-1364]
   - commands/provision: Add `--no-parallel` option to disable provider
     parallelization if the provider supports it. [GH-2404]
+  - commands/ssh: SSH compression is enabled by default. [GH-2456]
+  - commands/ssh: Inline commands specified with "-c" are now executed
+    using OpenSSH rather than pure-Ruby SSH. It is MUCH faster, and
+    stdin works!
+  - communicators/ssh: new configuration `config.ssh.pty` is a boolean for
+    whether you want ot use a PTY for provisioning.
+  - guests/linux: emit upstart event `vagrant-mounted` if upstart is
+    available. [GH-2502]
+  - guests/pld: support changing hostname [GH-2543]
   - providers/virtualbox: Enable symlinks for VirtualBox 4.1. [GH-2414]
+  - providers/virtualbox: default VM name now includes milliseconds with
+    a random number to try to avoid conflicts in CI environments. [GH-2482]
+  - providers/virtualbox: customizations via VBoxManage are retried, avoiding
+    VirtualBox flakiness [GH-2483]
+  - providers/virtualbox: NFS works with DHCP host-only networks now. [GH-2560]
+  - provisioners/ansible: allow files for extra vars [GH-2366]
+  - provisioners/puppet: client cert and private key can now be specified
+    for the puppet server provisioner. [GH-902]
+  - provisioners/puppet: the manifests path can be in the VM. [GH-1805]
+  - provisioners/shell: Added `keep_color` option to not automatically color
+    output based on stdout/stderr. [GH-2505]
+  - provisioners/shell: Arguments can now be an array of args. [GH-1949]
+  - synced\_folders/nfs: Specify `nfs_udp` to false to disable UDP based
+    NFS folders. [GH-2304]
 
 BUG FIXES:
 
   - core: Make sure machine IDs are always strings. [GH-2434]
   - core: 100% CPU spike when waiting for SSH is fixed. [GH-2401]
+  - core: Command lookup works on systems where PATH is not valid UTF-8 [GH-2514]
+  - core: Human-friendly error if box metadata.json becomes corrupted. [GH-2305]
+  - core: Don't load Vagrantfile on `vagrant plugin` commands, allowing
+    Vagrantfiles that use plugins to work. [GH-2388]
+  - core: global flags are ignored past the "--" on the CLI. [GH-2491]
+  - core: provisoining will properly happen if `up` failed. [GH-2488]
   - guests/freebsd: Mounting NFS folders works. [GH-2400]
+  - guests/freebsd: Uses `sh` by default for shell. [GH-2485]
+  - guests/linux: upstart events listening for `vagrant-mounted` won't
+    wait for jobs to complete, fixing issues with blocking during
+    vagrant up [GH-2564]
+  - guests/redhat: `DHCP_HOSTNAME` is set to the hostname, not the FQDN. [GH-2441]
+  - guests/redhat: Down interface before messing up configuration file
+    for networking. [GH-1577]
   - guests/ubuntu: "localhost" is preserved when changing hostnames.
     [GH-2383]
+  - hosts/bsd: Don't set mapall if maproot is set in NFS. [GH-2448]
   - hosts/gentoo: Support systemd for NFS startup. [GH-2382]
+  - providers/virtualbox: Don't start new VM if VirtualBox has transient
+    failure during `up` from suspended. [GH-2479]
+  - provisioners/chef: Chef client encrypted data bag secrets are now
+    uploaded to the provisioning path to avoid perm issues. [GH-1246]
+  - provisioners/chef: Create/chown the cache and backup folders. [GH-2281]
+  - provisioners/chef: Verify environment paths exist in config
+    validation step. [GH-2381]
+  - provisioners/puppet: Multiple puppet definitions in a Vagrantfile
+    work correctly.
+  - provisioners/salt: Bootstrap on FreeBSD systems work. [GH-2525]
+  - provisioners/salt: Extra args for bootstrap are put in the proper
+    location. [GH-2558]
 
 ## 1.3.5 (October 15, 2013)
 
@@ -1137,7 +1865,7 @@ Note: 0.8.3 and 0.8.4 was yanked due to RubyGems encoding issue.
  - Checking guest addition versions now ignores OSE. [GH-438]
  - Chef solo from a remote URL fixed. [GH-431]
  - Arch linux support: host only networks and changing the host name. [GH-439] [GH-448]
- - Chef solo `roles_path` and `data_bags_path` can only be be single paths. [GH-446]
+ - Chef solo `roles_path` and `data_bags_path` can only be single paths. [GH-446]
  - Fix `virtualbox_not_detected` error message to require 4.1.x. [GH-458]
  - Add shortname (`hostname -s`) for hostname setting on RHEL systems. [GH-456]
  - `vagrant ssh -c` output no longer has a prefix and respects newlines

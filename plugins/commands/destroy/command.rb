@@ -1,12 +1,18 @@
 module VagrantPlugins
   module CommandDestroy
     class Command < Vagrant.plugin("2", :command)
+      def self.synopsis
+        "stops and deletes all traces of the vagrant machine"
+      end
+
       def execute
         options = {}
         options[:force] = false
 
         opts = OptionParser.new do |o|
-          o.banner = "Usage: vagrant destroy [vm-name]"
+          o.banner = "Usage: vagrant destroy [options] [name]"
+          o.separator ""
+          o.separator "Options:"
           o.separator ""
 
           o.on("-f", "--force", "Destroy without confirmation.") do |f|
@@ -19,17 +25,25 @@ module VagrantPlugins
         return if !argv
 
         @logger.debug("'Destroy' each target VM...")
-        declined = false
-        with_target_vms(argv, :reverse => true) do |vm|
+        declined = 0
+        total    = 0
+        with_target_vms(argv, reverse: true) do |vm|
           action_env = vm.action(
-            :destroy, :force_confirm_destroy => options[:force])
+            :destroy, force_confirm_destroy: options[:force])
 
-          declined = true if action_env.has_key?(:force_confirm_destroy_result) &&
+          total    += 1
+          declined += 1 if action_env.has_key?(:force_confirm_destroy_result) &&
             action_env[:force_confirm_destroy_result] == false
         end
 
-        # Success if no confirms were declined
-        declined ? 1 : 0
+        # Nothing was declined
+        return 0 if declined == 0
+
+        # Everything was declined
+        return 1 if declined == total
+
+        # Some was declined
+        return 2
       end
     end
   end

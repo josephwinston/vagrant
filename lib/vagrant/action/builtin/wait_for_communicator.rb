@@ -21,25 +21,15 @@ module Vagrant
           states_thr = Thread.new do
             Thread.current[:result] = true
 
-            # If we aren't caring about states, just basically put this
-            # thread to sleep because it'll get killed later.
-            if !@states
-              while true
-                sleep 300
-              end
-
-              next
-            end
-
             # Otherwise, periodically verify the VM isn't in a bad state.
             while true
-              state = env[:machine].provider.state.id
+              state = env[:machine].state.id
 
               # Used to report invalid states
               Thread.current[:last_known_state] = state
 
               # Check if we have the proper state so we can break out
-              if !@states.include?(state)
+              if @states && !@states.include?(state)
                 Thread.current[:result] = false
                 break
               end
@@ -50,11 +40,15 @@ module Vagrant
           end
 
           # Wait for a result or an interrupt
-          env[:ui].info I18n.t("vagrant.boot_waiting")
+          env[:ui].output(I18n.t("vagrant.boot_waiting"))
           while ready_thr.alive? && states_thr.alive?
             sleep 1
             return if env[:interrupted]
           end
+
+          # Join so that they can raise exceptions if there were any
+          ready_thr.join if !ready_thr.alive?
+          states_thr.join if !states_thr.alive?
 
           # If it went into a bad state, then raise an error
           if !states_thr[:result]
@@ -68,7 +62,7 @@ module Vagrant
             raise Errors::VMBootTimeout
           end
 
-          env[:ui].info I18n.t("vagrant.boot_completed")
+          env[:ui].output(I18n.t("vagrant.boot_completed"))
 
           # Make sure our threads are all killed
           ready_thr.kill

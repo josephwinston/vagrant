@@ -5,6 +5,19 @@ module VagrantPlugins
     class Provider < Vagrant.plugin("2", :provider)
       attr_reader :driver
 
+      def self.usable?(raise_error=false)
+        # Instantiate the driver, which will determine the VirtualBox
+        # version and all that, which checks for VirtualBox being present
+        Driver::Meta.new
+        true
+      rescue Vagrant::Errors::VirtualBoxInvalidVersion
+        raise if raise_error
+        return false
+      rescue Vagrant::Errors::VirtualBoxNotDetected
+        raise if raise_error
+        return false
+      end
+
       def initialize(machine)
         @logger  = Log4r::Logger.new("vagrant::provider::virtualbox")
         @machine = machine
@@ -43,16 +56,15 @@ module VagrantPlugins
 
       # Returns the SSH info for accessing the VirtualBox VM.
       def ssh_info
-        # If the VM is not created then we cannot possibly SSH into it, so
-        # we return nil.
-        return nil if state.id == :not_created
+        # If the VM is not running that we can't possibly SSH into it
+        return nil if state.id != :running
 
         # Return what we know. The host is always "127.0.0.1" because
         # VirtualBox VMs are always local. The port we try to discover
         # by reading the forwarded ports.
         return {
-          :host => "127.0.0.1",
-          :port => @driver.ssh_port(@machine.config.ssh.guest_port)
+          host: "127.0.0.1",
+          port: @driver.ssh_port(@machine.config.ssh.guest_port)
         }
       end
 
@@ -61,9 +73,6 @@ module VagrantPlugins
       #
       # @return [Symbol]
       def state
-        # XXX: What happens if we destroy the VM but the UUID is still
-        # set here?
-
         # Determine the ID of the state here.
         state_id = nil
         state_id = :not_created if !@driver.uuid
@@ -73,6 +82,11 @@ module VagrantPlugins
         # Translate into short/long descriptions
         short = state_id.to_s.gsub("_", " ")
         long  = I18n.t("vagrant.commands.status.#{state_id}")
+
+        # If we're not created, then specify the special ID flag
+        if state_id == :not_created
+          state_id = Vagrant::MachineState::NOT_CREATED_ID
+        end
 
         # Return the state
         Vagrant::MachineState.new(state_id, short, long)

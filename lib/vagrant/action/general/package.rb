@@ -23,7 +23,7 @@ module Vagrant
           @app = app
 
           env["package.files"]  ||= {}
-          env["package.output"] ||= env[:global_config].package.name
+          env["package.output"] ||= "package.box"
         end
 
         def call(env)
@@ -34,12 +34,14 @@ module Vagrant
           raise Errors::PackageRequiresDirectory if !env["package.directory"] ||
             !File.directory?(env["package.directory"])
 
-          compress
-
           @app.call(env)
+
+          compress
         end
 
         def recover(env)
+          @env = env
+
           # There are certain exceptions that we don't delete the file for.
           ignore_exc = [Errors::PackageOutputDirectory, Errors::PackageOutputExists]
           ignore_exc.each do |exc|
@@ -60,21 +62,26 @@ module Vagrant
             # We place the file in the include directory
             to = include_directory.join(dest)
 
-            @env[:ui].info I18n.t("vagrant.actions.general.package.packaging", :file => from)
+            @env[:ui].info I18n.t("vagrant.actions.general.package.packaging", file: from)
             FileUtils.mkdir_p(to.parent)
 
             # Copy direcotry contents recursively.
             if File.directory?(from)
-              FileUtils.cp_r(Dir.glob(from), to.parent, :preserve => true)
+              FileUtils.cp_r(Dir.glob(from), to.parent, preserve: true)
             else
-              FileUtils.cp(from, to, :preserve => true)
+              FileUtils.cp(from, to, preserve: true)
             end
           end
+        rescue Errno::EEXIST => e
+          raise if !e.to_s.include?("symlink")
+
+          # The directory contains symlinks. Show a nicer error.
+          raise Errors::PackageIncludeSymlink
         end
 
         # Compress the exported file into a package
         def compress
-          @env[:ui].info I18n.t("vagrant.actions.general.package.compressing", :tar_path => tar_path)
+          @env[:ui].info I18n.t("vagrant.actions.general.package.compressing", tar_path: tar_path)
 
           # Copy over the included files
           copy_include_files
@@ -86,7 +93,7 @@ module Vagrant
           # Switch into that directory and package everything up
           Util::SafeChdir.safe_chdir(@env["package.directory"]) do
             # Find all the files in our current directory and tar it up!
-            files = Dir.glob(File.join(".", "**", "*"))
+            files = Dir.glob(File.join(".", "*"))
 
             # Package!
             Util::Subprocess.execute("bsdtar", "-czf", output_path, *files)

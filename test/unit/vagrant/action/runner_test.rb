@@ -12,6 +12,16 @@ describe Vagrant::Action::Runner do
     expect { instance.run(callable) }.to raise_error(Exception, "BOOM")
   end
 
+  it "should be able to use a Method instance as a callable" do
+    klass = Class.new do
+      def action(env)
+        raise Exception, "BANG"
+      end
+    end
+    callable = klass.new.method(:action)
+    expect { instance.run(callable) }.to raise_error(Exception, "BANG")
+  end
+
   it "should be able to use a Class as a callable" do
     callable = Class.new do
       def initialize(app, env)
@@ -34,7 +44,7 @@ describe Vagrant::Action::Runner do
     end
 
     result = instance.run(callable)
-    result[:data].should == "value"
+    expect(result[:data]).to eq("value")
   end
 
   it "should pass options into hash given to callable" do
@@ -44,7 +54,7 @@ describe Vagrant::Action::Runner do
     end
 
     instance.run(callable, "data" => "foo")
-    result.should == "foo"
+    expect(result).to eq("foo")
   end
 
   it "should pass global options into the hash" do
@@ -55,7 +65,7 @@ describe Vagrant::Action::Runner do
 
     instance = described_class.new("data" => "bar")
     instance.run(callable)
-    result.should == "bar"
+    expect(result).to eq("bar")
   end
 
   it "should yield the block passed to the init method to get lazy loaded globals" do
@@ -66,6 +76,6 @@ describe Vagrant::Action::Runner do
 
     instance = described_class.new { { "data" => "bar" } }
     instance.run(callable)
-    result.should == "bar"
+    expect(result).to eq("bar")
   end
 end

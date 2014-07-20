@@ -10,8 +10,8 @@ describe Vagrant::Action::Builtin::Lock do
 
   let(:options) do
     {
-      :exception => Class.new(StandardError),
-      :path      => lock_path
+      exception: Class.new(StandardError),
+      path:      lock_path
     }
   end
 
@@ -19,13 +19,13 @@ describe Vagrant::Action::Builtin::Lock do
     expect { described_class.new(app, env) }.
       to raise_error(ArgumentError)
 
-    expect { described_class.new(app, env, :path => "foo") }.
+    expect { described_class.new(app, env, path: "foo") }.
       to raise_error(ArgumentError)
 
-    expect { described_class.new(app, env, :exception => "foo") }.
+    expect { described_class.new(app, env, exception: "foo") }.
       to raise_error(ArgumentError)
 
-    expect { described_class.new(app, env, :path => "bar", :exception => "foo") }.
+    expect { described_class.new(app, env, path: "bar", exception: "foo") }.
       to_not raise_error
   end
 
@@ -42,7 +42,7 @@ describe Vagrant::Action::Builtin::Lock do
     instance = described_class.new(app, env, options)
     instance.call(env)
 
-    inner_acquire.should == false
+    expect(inner_acquire).to eq(false)
   end
 
   it "should allow the exception to be a proc" do
@@ -51,7 +51,7 @@ describe Vagrant::Action::Builtin::Lock do
 
     File.open(lock_path, "w+") do |f|
       # Acquire lock
-      f.flock(File::LOCK_EX | File::LOCK_NB).should == 0
+      expect(f.flock(File::LOCK_EX | File::LOCK_NB)).to eq(0)
 
       # Test!
       instance = described_class.new(app, env, options)
@@ -71,13 +71,13 @@ describe Vagrant::Action::Builtin::Lock do
     instance = described_class.new(app, env, options)
     instance.call(env)
 
-    inner_acquire.should == false
+    expect(inner_acquire).to eq(false)
   end
 
   it "should raise an exception if the lock is already held" do
     File.open(lock_path, "w+") do |f|
       # Acquire lock
-      f.flock(File::LOCK_EX | File::LOCK_NB).should == 0
+      expect(f.flock(File::LOCK_EX | File::LOCK_NB)).to eq(0)
 
       # Test!
       instance = described_class.new(app, env, options)
@@ -93,6 +93,6 @@ describe Vagrant::Action::Builtin::Lock do
     outer = described_class.new(inner, env, options)
     outer.call(env)
 
-    called.should == true
+    expect(called).to eq(true)
   end
 end

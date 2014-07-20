@@ -51,6 +51,16 @@ module Vagrant
           old_state = old.__internal_state
           new_state = new.__internal_state
 
+          # Make sure we instantiate every key in the config so that we
+          # merge every key. This avoids issues with the same reference
+          # being part of the config.
+          old_state["config_map"].each do |k, _|
+            old.public_send(k)
+          end
+          new_state["config_map"].each do |k, _|
+            new.public_send(k)
+          end
+
           # The config map for the new object is the old one merged with the
           # new one.
           config_map = old_state["config_map"].merge(new_state["config_map"])
@@ -120,7 +130,7 @@ module Vagrant
           end
 
           old.__internal_state["missing_key_calls"].to_a.sort.each do |key|
-            warnings << I18n.t("vagrant.config.loader.bad_v1_key", :key => key)
+            warnings << I18n.t("vagrant.config.loader.bad_v1_key", key: key)
           end
 
           [root, warnings, errors]

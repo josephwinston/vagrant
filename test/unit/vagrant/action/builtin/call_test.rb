@@ -4,6 +4,20 @@ describe Vagrant::Action::Builtin::Call do
   let(:app) { lambda { |env| } }
   let(:env) { {} }
 
+  def wrapper_proc(data)
+    Class.new do
+      def initialize(app, env)
+        @app = app
+      end
+
+      define_method(:call) do |env|
+        env[:data] << "#{data}_in"
+        @app.call(env)
+        env[:data] << "#{data}_out"
+      end
+    end
+  end
+
   it "should yield the env to the block" do
     received = nil
 
@@ -15,7 +29,7 @@ describe Vagrant::Action::Builtin::Call do
       received = env[:result]
     end.call({})
 
-    received.should == "value"
+    expect(received).to eq("value")
   end
 
   it "should update the original env with any changes" do
@@ -26,7 +40,7 @@ describe Vagrant::Action::Builtin::Call do
       builder.use next_step
     end.call(env)
 
-    env[:inner].should == true
+    expect(env[:inner]).to eq(true)
   end
 
   it "should call the callable with the original environment" do
@@ -35,9 +49,9 @@ describe Vagrant::Action::Builtin::Call do
 
     described_class.new(app, env, callable) do |_env, _builder|
       # Nothing.
-    end.call({ :foo => :bar })
+    end.call({ foo: :bar })
 
-    received.should == :bar
+    expect(received).to eq(:bar)
    end
 
   it "should call the next builder" do
@@ -49,7 +63,7 @@ describe Vagrant::Action::Builtin::Call do
       builder.use next_step
     end.call({})
 
-    received.should == "value"
+    expect(received).to eq("value")
   end
 
   it "should call the next builder with the original environment" do
@@ -59,9 +73,26 @@ describe Vagrant::Action::Builtin::Call do
 
     described_class.new(app, env, callable) do |_env, builder|
       builder.use next_step
-    end.call({ :foo => :bar })
+    end.call({ foo: :bar })
 
-    received.should == :bar
+    expect(received).to eq(:bar)
+  end
+
+  it "should call the next builder inserted in our own stack" do
+    callable = lambda { |env| }
+
+    builder = Vagrant::Action::Builder.new.tap do |b|
+      b.use wrapper_proc(1)
+      b.use described_class, callable do |_env, b2|
+        b2.use wrapper_proc(2)
+      end
+      b.use wrapper_proc(3)
+    end
+
+    env = { data: [] }
+    builder.call(env)
+    expect(env[:data]).to eq([
+      "1_in", "2_in", "3_in", "3_out", "2_out", "1_out"])
   end
 
   it "should instantiate the callable with the extra args" do
@@ -81,7 +112,7 @@ describe Vagrant::Action::Builtin::Call do
     end
     instance.call(env)
 
-    result.should == :foo
+    expect(result).to eq(:foo)
   end
 
   it "should call the recover method for the sequence in an error" do
@@ -131,7 +162,7 @@ describe Vagrant::Action::Builtin::Call do
     instance.call(env)
     instance.recover(env)
 
-    env[:steps].should == [:call_A, :call_B, :recover_B, :recover_A]
+    expect(env[:steps]).to eq([:call_A, :call_B, :recover_B, :recover_A])
   end
 
   it "should recover even if it failed in the callable" do

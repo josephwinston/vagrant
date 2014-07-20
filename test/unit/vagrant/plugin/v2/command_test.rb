@@ -2,6 +2,8 @@ require File.expand_path("../../../../base", __FILE__)
 require 'optparse'
 
 describe Vagrant::Plugin::V2::Command do
+  include_context "unit"
+
   describe "parsing options" do
     let(:klass) do
       Class.new(described_class) do
@@ -21,20 +23,20 @@ describe Vagrant::Plugin::V2::Command do
       result = klass.new(["-f", "foo"], nil).parse_options(opts)
 
       # Check the results
-      options[:f].should be
-      result.should == ["foo"]
+      expect(options[:f]).to be
+      expect(result).to eq(["foo"])
     end
 
     it "creates an option parser if none is given" do
       result = klass.new(["foo"], nil).parse_options(nil)
-      result.should == ["foo"]
+      expect(result).to eq(["foo"])
     end
 
     ["-h", "--help"].each do |help_string|
       it "returns nil and prints the help if '#{help_string}' is given" do
         instance = klass.new([help_string], nil)
-        instance.should_receive(:safe_puts)
-        instance.parse_options(OptionParser.new).should be_nil
+        expect(instance).to receive(:safe_puts)
+        expect(instance.parse_options(OptionParser.new)).to be_nil
       end
     end
 
@@ -53,20 +55,19 @@ describe Vagrant::Plugin::V2::Command do
       end
     end
 
-    let(:default_provider) { :virtualbox }
-
     let(:environment) do
-      env = double("environment")
-      env.stub(:active_machines => [])
-      env.stub(:default_provider => default_provider)
-      env.stub(:root_path => "foo")
-      env
+      # We have to create a Vagrantfile so there is a root path
+      test_iso_env.vagrantfile("")
+      test_iso_env.create_vagrant_env
     end
+    let(:test_iso_env) { isolated_environment }
 
     let(:instance)    { klass.new([], environment) }
 
+    subject { instance }
+
     it "should raise an exception if a root_path is not available" do
-      environment.stub(:root_path => nil)
+      environment.stub(root_path: nil)
 
       expect { instance.with_target_vms }.
         to raise_error(Vagrant::Errors::NoEnvironmentError)
@@ -74,26 +75,28 @@ describe Vagrant::Plugin::V2::Command do
 
     it "should yield every VM in order is no name is given" do
       foo_vm = double("foo")
-      foo_vm.stub(:name => "foo", :provider => :foobarbaz)
+      foo_vm.stub(name: "foo", provider: :foobarbaz)
+      foo_vm.stub(ui: Vagrant::UI::Silent.new)
 
       bar_vm = double("bar")
-      bar_vm.stub(:name => "bar", :provider => :foobarbaz)
+      bar_vm.stub(name: "bar", provider: :foobarbaz)
+      bar_vm.stub(ui: Vagrant::UI::Silent.new)
 
-      environment.stub(:machine_names => [:foo, :bar])
-      environment.stub(:machine).with(:foo, default_provider).and_return(foo_vm)
-      environment.stub(:machine).with(:bar, default_provider).and_return(bar_vm)
+      environment.stub(machine_names: [:foo, :bar])
+      allow(environment).to receive(:machine).with(:foo, environment.default_provider).and_return(foo_vm)
+      allow(environment).to receive(:machine).with(:bar, environment.default_provider).and_return(bar_vm)
 
       vms = []
       instance.with_target_vms do |vm|
         vms << vm
       end
 
-      vms.should == [foo_vm, bar_vm]
+      expect(vms).to eq([foo_vm, bar_vm])
     end
 
     it "raises an exception if the named VM doesn't exist" do
-      environment.stub(:machine_names => [:default])
-      environment.stub(:machine).with(:foo, anything).and_return(nil)
+      environment.stub(machine_names: [:default])
+      allow(environment).to receive(:machine).with(:foo, anything).and_return(nil)
 
       expect { instance.with_target_vms("foo") }.
         to raise_error(Vagrant::Errors::VMNotFoundError)
@@ -101,32 +104,34 @@ describe Vagrant::Plugin::V2::Command do
 
     it "yields the given VM if a name is given" do
       foo_vm = double("foo")
-      foo_vm.stub(:name => "foo", :provider => :foobarbaz)
+      foo_vm.stub(name: "foo", provider: :foobarbaz)
+      foo_vm.stub(ui: Vagrant::UI::Silent.new)
 
-      environment.stub(:machine).with(:foo, default_provider).and_return(foo_vm)
+      allow(environment).to receive(:machine).with(:foo, environment.default_provider).and_return(foo_vm)
 
       vms = []
       instance.with_target_vms("foo") { |vm| vms << vm }
-      vms.should == [foo_vm]
+      expect(vms).to eq([foo_vm])
     end
 
     it "yields the given VM with proper provider if given" do
       foo_vm = double("foo")
       provider = :foobarbaz
 
-      foo_vm.stub(:name => "foo", :provider => provider)
-      environment.stub(:machine).with(:foo, provider).and_return(foo_vm)
+      foo_vm.stub(name: "foo", provider: provider)
+      foo_vm.stub(ui: Vagrant::UI::Silent.new)
+      allow(environment).to receive(:machine).with(:foo, provider).and_return(foo_vm)
 
       vms = []
-      instance.with_target_vms("foo", :provider => provider) { |vm| vms << vm }
-      vms.should == [foo_vm]
+      instance.with_target_vms("foo", provider: provider) { |vm| vms << vm }
+      expect(vms).to eq([foo_vm])
     end
 
     it "should raise an exception if an active machine exists with a different provider" do
       name = :foo
 
-      environment.stub(:active_machines => [[name, :vmware]])
-      expect { instance.with_target_vms(name.to_s, :provider => :foo) }.
+      environment.stub(active_machines: [[name, :vmware]])
+      expect { instance.with_target_vms(name.to_s, provider: :foo) }.
         to raise_error Vagrant::Errors::ActiveMachineWithDifferentProvider
     end
 
@@ -135,13 +140,14 @@ describe Vagrant::Plugin::V2::Command do
       provider = :vmware
       vmware_vm = double("vmware_vm")
 
-      environment.stub(:active_machines => [[name, provider]])
-      environment.stub(:machine).with(name, provider).and_return(vmware_vm)
-      vmware_vm.stub(:name => name, :provider => provider)
+      environment.stub(active_machines: [[name, provider]])
+      allow(environment).to receive(:machine).with(name, provider).and_return(vmware_vm)
+      vmware_vm.stub(name: name, provider: provider)
+      vmware_vm.stub(ui: Vagrant::UI::Silent.new)
 
       vms = []
       instance.with_target_vms(name.to_s) { |vm| vms << vm }
-      vms.should == [vmware_vm]
+      expect(vms).to eq([vmware_vm])
     end
 
     it "should use the explicit provider if it maches the active machine" do
@@ -149,25 +155,26 @@ describe Vagrant::Plugin::V2::Command do
       provider = :vmware
       vmware_vm = double("vmware_vm")
 
-      environment.stub(:active_machines => [[name, provider]])
-      environment.stub(:machine).with(name, provider).and_return(vmware_vm)
-      vmware_vm.stub(:name => name, :provider => provider)
+      environment.stub(active_machines: [[name, provider]])
+      allow(environment).to receive(:machine).with(name, provider).and_return(vmware_vm)
+      vmware_vm.stub(name: name, provider: provider, ui: Vagrant::UI::Silent.new)
 
       vms = []
-      instance.with_target_vms(name.to_s, :provider => provider) { |vm| vms << vm }
-      vms.should == [vmware_vm]
+      instance.with_target_vms(name.to_s, provider: provider) { |vm| vms << vm }
+      expect(vms).to eq([vmware_vm])
     end
 
     it "should use the default provider if none is given and none are active" do
       name = :foo
       machine = double("machine")
 
-      environment.stub(:machine).with(name, default_provider).and_return(machine)
-      machine.stub(:name => name, :provider => default_provider)
+      allow(environment).to receive(:machine).with(name, environment.default_provider).and_return(machine)
+      machine.stub(name: name, provider: environment.default_provider)
+      machine.stub(ui: Vagrant::UI::Silent.new)
 
       results = []
       instance.with_target_vms(name.to_s) { |m| results << m }
-      results.should == [machine]
+      expect(results).to eq([machine])
     end
 
     it "should use the primary machine with the active provider" do
@@ -175,30 +182,53 @@ describe Vagrant::Plugin::V2::Command do
       provider = :vmware
       vmware_vm = double("vmware_vm")
 
-      environment.stub(:active_machines => [[name, provider]])
-      environment.stub(:machine).with(name, provider).and_return(vmware_vm)
-      environment.stub(:machine_names => [])
-      environment.stub(:primary_machine_name => name)
-      vmware_vm.stub(:name => name, :provider => provider)
+      environment.stub(active_machines: [[name, provider]])
+      allow(environment).to receive(:machine).with(name, provider).and_return(vmware_vm)
+      environment.stub(machine_names: [])
+      environment.stub(primary_machine_name: name)
+      vmware_vm.stub(name: name, provider: provider)
+      vmware_vm.stub(ui: Vagrant::UI::Silent.new)
 
       vms = []
-      instance.with_target_vms(nil, :single_target => true) { |vm| vms << vm }
-      vms.should == [vmware_vm]
+      instance.with_target_vms(nil, single_target: true) { |vm| vms << vm }
+      expect(vms).to eq([vmware_vm])
     end
 
     it "should use the primary machine with the default provider" do
       name = :foo
       machine = double("machine")
 
-      environment.stub(:active_machines => [])
-      environment.stub(:machine).with(name, default_provider).and_return(machine)
-      environment.stub(:machine_names => [])
-      environment.stub(:primary_machine_name => name)
-      machine.stub(:name => name, :provider => default_provider)
+      environment.stub(active_machines: [])
+      allow(environment).to receive(:machine).with(name, environment.default_provider).and_return(machine)
+      environment.stub(machine_names: [])
+      environment.stub(primary_machine_name: name)
+      machine.stub(name: name, provider: environment.default_provider)
+      machine.stub(ui: Vagrant::UI::Silent.new)
 
       vms = []
-      instance.with_target_vms(nil, :single_target => true) { |vm| vms << machine }
-      vms.should == [machine]
+      instance.with_target_vms(nil, single_target: true) { |vm| vms << machine }
+      expect(vms).to eq([machine])
+    end
+
+    it "should yield machines from another environment" do
+      iso_env       = isolated_environment
+      iso_env.vagrantfile("")
+      other_env     = iso_env.create_vagrant_env(
+        home_path: environment.home_path)
+      other_machine = other_env.machine(
+        other_env.machine_names[0], other_env.default_provider)
+
+      # Set an ID on it so that it is "created" in the index
+      other_machine.id = "foo"
+
+      # Make sure we don't have a root path, to test
+      environment.stub(root_path: nil)
+
+      results = []
+      subject.with_target_vms(other_machine.index_uuid) { |m| results << m }
+
+      expect(results.length).to eq(1)
+      expect(results[0].id).to eq(other_machine.id)
     end
   end
 
@@ -212,27 +242,27 @@ describe Vagrant::Plugin::V2::Command do
 
     it "should work when given all 3 parts" do
       result = instance.split_main_and_subcommand(["-v", "status", "-h", "-v"])
-      result.should == [["-v"], "status", ["-h", "-v"]]
+      expect(result).to eq([["-v"], "status", ["-h", "-v"]])
     end
 
     it "should work when given only a subcommand and args" do
       result = instance.split_main_and_subcommand(["status", "-h"])
-      result.should == [[], "status", ["-h"]]
+      expect(result).to eq([[], "status", ["-h"]])
     end
 
     it "should work when given only main flags" do
       result = instance.split_main_and_subcommand(["-v", "-h"])
-      result.should == [["-v", "-h"], nil, []]
+      expect(result).to eq([["-v", "-h"], nil, []])
     end
 
     it "should work when given only a subcommand" do
       result = instance.split_main_and_subcommand(["status"])
-      result.should == [[], "status", []]
+      expect(result).to eq([[], "status", []])
     end
 
     it "works when there are other non-flag args after the subcommand" do
       result = instance.split_main_and_subcommand(["-v", "box", "add", "-h"])
-      result.should == [["-v"], "box", ["add", "-h"]]
+      expect(result).to eq([["-v"], "box", ["add", "-h"]])
     end
   end
 end

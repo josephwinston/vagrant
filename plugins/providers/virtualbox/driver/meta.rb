@@ -63,7 +63,8 @@ module VagrantPlugins
 
           if !driver_klass
             supported_versions = driver_map.keys.sort.join(", ")
-            raise Vagrant::Errors::VirtualBoxInvalidVersion, :supported_versions => supported_versions
+            raise Vagrant::Errors::VirtualBoxInvalidVersion,
+              supported_versions: supported_versions
           end
 
           @logger.info("Using VirtualBox driver: #{driver_klass}")
@@ -92,6 +93,8 @@ module VagrantPlugins
           :read_forwarded_ports,
           :read_bridged_interfaces,
           :read_guest_additions_version,
+          :read_guest_ip,
+          :read_guest_property,
           :read_host_only_interfaces,
           :read_mac_address,
           :read_mac_addresses,

@@ -1,5 +1,5 @@
-require "i18n"
 require "vagrant"
+require "vagrant/util/deep_merge"
 
 module VagrantPlugins
   module Salt
@@ -19,6 +19,8 @@ module VagrantPlugins
       attr_accessor :verbose
       attr_accessor :seed_master
       attr_reader   :pillar_data
+      attr_accessor :colorize
+      attr_accessor :log_level
 
       ## bootstrap options
       attr_accessor :temp_config_dir
@@ -43,6 +45,8 @@ module VagrantPlugins
         @verbose = UNSET_VALUE
         @seed_master = UNSET_VALUE
         @pillar_data = UNSET_VALUE
+        @colorize = UNSET_VALUE
+        @log_level = UNSET_VALUE
         @temp_config_dir = UNSET_VALUE
         @install_type = UNSET_VALUE
         @install_args = UNSET_VALUE
@@ -66,6 +70,8 @@ module VagrantPlugins
         @verbose            = nil if @verbose == UNSET_VALUE
         @seed_master        = nil if @seed_master == UNSET_VALUE
         @pillar_data        = {}  if @pillar_data == UNSET_VALUE
+        @colorize           = nil if @colorize == UNSET_VALUE
+        @log_level          = nil if @log_level == UNSET_VALUE
         @temp_config_dir    = nil if @temp_config_dir == UNSET_VALUE
         @install_type       = nil if @install_type == UNSET_VALUE
         @install_args       = nil if @install_args == UNSET_VALUE
@@ -78,28 +84,42 @@ module VagrantPlugins
 
       def pillar(data)
         @pillar_data = {} if @pillar_data == UNSET_VALUE
-        @pillar_data.deep_merge!(data)
+        @pillar_data = Vagrant::Util::DeepMerge.deep_merge(@pillar_data, data)
       end
 
       def validate(machine)
         errors = _detected_errors
-        if @minion_key || @minion_pub
-          if !@minion_key || !@minion_pub
-            errors << @minion_pub
+        if @minion_config
+          expanded = Pathname.new(@minion_config).expand_path(machine.env.root_path)
+          if !expanded.file?
+            errors << I18n.t("vagrant.provisioners.salt.minion_config_nonexist")
           end
         end
 
-        if @master_key && @master_pub
-          if !@minion_key && !@minion_pub
-            errors << I18n.t("salt.missing_key")
+        if @master_config
+          expanded = Pathname.new(@master_config).expand_path(machine.env.root_path)
+          if !expanded.file?
+            errors << I18n.t("vagrant.provisioners.salt.master_config_nonexist")
+          end
+        end
+
+        if @minion_key || @minion_pub
+          if !@minion_key || !@minion_pub
+            errors << I18n.t("vagrant.provisioners.salt.missing_key")
+          end
+        end
+
+        if @master_key || @master_pub
+          if !@master_key || !@master_pub
+            errors << I18n.t("vagrant.provisioners.salt.missing_key")
           end
         end
 
         if @install_master && !@no_minion && !@seed_master && @run_highstate
-          errors << I18n.t("salt.must_accept_keys")
+          errors << I18n.t("vagrant.provisioners.salt.must_accept_keys")
         end
 
-        return {"salt" => errors}
+        return {"salt provisioner" => errors}
       end
 
 

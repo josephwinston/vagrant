@@ -34,6 +34,13 @@ module Vagrant
     def has_key?(key)
       @items.has_key?(key)
     end
+    
+    # Returns an array populated with the keys of this object.
+    #
+    # @return [Array]
+    def keys
+      @items.keys
+    end
 
     # Iterate over the keyspace.
     def each(&block)
@@ -70,8 +77,8 @@ module Vagrant
 
     def __internal_state
       {
-        :items => @items,
-        :results_cache => @results_cache
+        items: @items,
+        results_cache: @results_cache
       }
     end
   end

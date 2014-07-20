@@ -4,6 +4,10 @@ module VagrantPlugins
   module CommandPlugin
     module Command
       class Root < Vagrant.plugin("2", :command)
+        def self.synopsis
+          "manages plugins: install, uninstall, update, etc."
+        end
+
         def initialize(argv, env)
           super
 
@@ -72,7 +76,7 @@ module VagrantPlugins
             o.separator "For help on any individual command run `vagrant plugin COMMAND -h`"
           end
 
-          @env.ui.info(opts.help, :prefix => false)
+          @env.ui.info(opts.help, prefix: false)
         end
       end
     end

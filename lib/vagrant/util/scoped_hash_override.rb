@@ -4,16 +4,16 @@ module Vagrant
     # prefix. An example speaks best here. Imagine the following hash:
     #
     #     original = {
-    #       :id => "foo",
-    #       :mitchellh__id => "bar",
-    #       :mitchellh__other => "foo"
+    #       id: "foo",
+    #       mitchellh__id: "bar",
+    #       mitchellh__other: "foo"
     #     }
     #
     #     scoped = scoped_hash_override(original, "mitchellh")
     #
     #     scoped == {
-    #       :id => "bar",
-    #       :other => "foo"
+    #       id: "bar",
+    #       other: "foo"
     #     }
     #
     module ScopedHashOverride
@@ -34,7 +34,6 @@ module Vagrant
           # If this is our scope, then override
           if parts[0] == scope
             result[parts[1].to_sym] = value
-            result.delete(key)
           end
         end
 

@@ -62,29 +62,51 @@ just like other Vagrantfiles within the
 If you're familiar with programming, this is similar to how languages have
 different variable scopes.
 
+When using these scopes, order of execution for things such as
+provisioners becomes important. Vagrant enforces ordering outside-in, in
+the order listed in the Vagrantfile. For example, with the Vagrantfile
+below:
+
+```ruby
+Vagrant.configure("2") do |config|
+    config.vm.provision :shell, inline: 'echo A'
+    config.vm.define :testing do |test|
+        test.vm.provision :shell, inline: 'echo B'
+    end
+    config.vm.provision :shell, inline: 'echo C'
+end
+```
+
+The provisioners in this case will output "A", then "C", then "B". Notice
+that "B" is last. That is because the ordering is outside-in, in
+the order of the file.
+
 ## Controlling Multiple Machines
 
 The moment more than one machine is defined within a Vagrantfile, the
 usage of the various `vagrant` commands changes slightly. The change should
 be mostly intuitive.
 
-Most commands, such as `vagrant up`, begin requiring the name of the machine
-to control. Using the example above, you could say `vagrant up web`, or
-`vagrant up db`. If no name is specified, it is assumed you mean to perform
-that operation on every machine. Therefore, `vagrant up` alone will bring
-up both the web and DB machine.
+Commands that only make sense to target a single machine, such as
+`vagrant ssh`, now _require_ the name of the machine to control. Using
+the example above, you would say `vagrant ssh web` or `vagrant ssh db`.
+
+Other commands, such as `vagrant up`, operate on _every_ machine by
+default. So if you ran `vagrant up`, Vagrant would bring up both the
+web and DB machine. You could also optionally be specific and say
+`vagrant up web` or `vagrant up db`.
 
 Additionally, you can specify a regular expression for matching only
 certain machines. This is useful in some cases where you specify many similar
 machines, for example if you're testing a distributed service you may have
-a `master` machine as well as a `slave0`, `slave1`, `slave2`, etc. If you
-want to bring up all the slaves but not the master, you can just do
-`vagrant up /slave[0-9]/`. If Vagrant sees a machine name within forward
+a `leader` machine as well as a `follower0`, `follower1`, `follower2`, etc. If you
+want to bring up all the followers but not the leader, you can just do
+`vagrant up /follower[0-9]/`. If Vagrant sees a machine name within forward
 slashes, it assumes you're using a regular expression.
 
 ## Communication Between Machines
 
-In order to faciliate communication within machines in a multi-machine setup,
+In order to facilitate communication within machines in a multi-machine setup,
 the various [networking](/v2/networking/index.html) options should be used.
 In particular, the [private network](/v2/networking/private_network.html) can
 be used to make a private network between multiple machines and the host.
@@ -103,3 +125,20 @@ config.vm.define "web", primary: true do |web|
   # ...
 end
 ```
+
+## Autostart Machines
+
+By default in a multi-machine environment, `vagrant up` will start
+all of the defined machines. The `autostart` setting allows you to tell
+Vagrant to _not_ start specific machines. Example:
+
+```ruby
+config.vm.define "web"
+config.vm.define "db"
+config.vm.define "db_follower", autostart: false
+```
+
+When running `vagrant up` with the settings above, Vagrant will automatically
+start the "web" and "db" machines, but will not start the "db\_follower" machine.
+You can manually force the "db\_follower" machine to start by running
+`vagrant up db_follower`.

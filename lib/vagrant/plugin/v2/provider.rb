@@ -1,3 +1,5 @@
+require "vagrant/capability_host"
+
 module Vagrant
   module Plugin
     module V2
@@ -5,6 +7,23 @@ module Vagrant
       # is responsible for creating compute resources to match the needs
       # of a Vagrant-configured system.
       class Provider
+        include CapabilityHost
+
+        # This is called early, before a machine is instantiated, to check
+        # if this provider is usable. This should return true or false.
+        #
+        # If raise_error is true, then instead of returning false, this
+        # should raise an error with a helpful message about why this
+        # provider cannot be used.
+        #
+        # @param [Boolean] raise_error If true, raise exception if not usable.
+        # @return [Boolean]
+        def self.usable?(raise_error=false)
+          # Return true by default for backwards compat since this was
+          # introduced long after providers were being written.
+          true
+        end
+
         # Initialize the provider to represent the given machine.
         #
         # @param [Vagrant::Machine] machine The machine that this provider
@@ -38,10 +57,10 @@ module Vagrant
         # following:
         #
         #     {
-        #       :host => "1.2.3.4",
-        #       :port => "22",
-        #       :username => "mitchellh",
-        #       :private_key_path => "/path/to/my/key"
+        #       host: "1.2.3.4",
+        #       port: "22",
+        #       username: "mitchellh",
+        #       private_key_path: "/path/to/my/key"
         #     }
         #
         # **Note:** Vagrant only supports private key based authentication,
@@ -62,6 +81,18 @@ module Vagrant
         # @return [MachineState]
         def state
           nil
+        end
+
+        # This is an internal initialize function that should never be
+        # overridden. It is used to initialize some common internal state
+        # that is used in a provider.
+        def _initialize(name, machine)
+          initialize_capabilities!(
+            name.to_sym,
+            { name.to_sym => [Class.new, nil] },
+            Vagrant.plugin("2").manager.provider_capabilities,
+            machine,
+          )
         end
       end
     end

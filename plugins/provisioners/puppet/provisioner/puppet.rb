@@ -17,7 +17,6 @@ module VagrantPlugins
         def configure(root_config)
           # Calculate the paths we're going to use based on the environment
           root_path = @machine.env.root_path
-          @expanded_manifests_path = @config.expanded_manifests_path(root_path)
           @expanded_module_paths   = @config.expanded_module_paths(root_path)
           @manifest_file           = File.join(manifests_guest_path, @config.manifest_file)
 
@@ -28,12 +27,15 @@ module VagrantPlugins
           end
 
           folder_opts = {}
-          folder_opts[:nfs] = true if @config.nfs
-          folder_opts[:owner] = "root" if !folder_opts[:nfs]
+          folder_opts[:type] = @config.synced_folder_type if @config.synced_folder_type
+          folder_opts[:owner] = "root" if !@config.synced_folder_type
 
           # Share the manifests directory with the guest
-          root_config.vm.synced_folder(
-            @expanded_manifests_path, manifests_guest_path, folder_opts)
+          if @config.manifests_path[0].to_sym == :host
+            root_config.vm.synced_folder(
+              File.expand_path(@config.manifests_path[1], root_path),
+              manifests_guest_path, folder_opts)
+          end
 
           # Share the module paths
           @module_paths.each do |from, to|
@@ -42,8 +44,17 @@ module VagrantPlugins
         end
 
         def provision
+          # If the machine has a wait for reboot functionality, then
+          # do that (primarily Windows)
+          if @machine.guest.capability?(:wait_for_reboot)
+            @machine.guest.capability(:wait_for_reboot)
+          end
+
           # Check that the shared folders are properly shared
-          check = [manifests_guest_path]
+          check = []
+          if @config.manifests_path[0] == :host
+            check << manifests_guest_path
+          end
           @module_paths.each do |host_path, guest_path|
             check << guest_path
           end
@@ -62,7 +73,8 @@ module VagrantPlugins
           # Upload Hiera configuration if we have it
           @hiera_config_path = nil
           if config.hiera_config_path
-            local_hiera_path   = File.expand_path(config.hiera_config_path, @machine.env.root_path)
+            local_hiera_path   = File.expand_path(config.hiera_config_path,
+              @machine.env.root_path)
             @hiera_config_path = File.join(config.temp_dir, "hiera.yaml")
             @machine.communicate.upload(local_hiera_path, @hiera_config_path)
           end
@@ -71,26 +83,38 @@ module VagrantPlugins
         end
 
         def manifests_guest_path
-          File.join(config.temp_dir, "manifests")
+          if config.manifests_path[0] == :host
+            # The path is on the host, so point to where it is shared
+            File.join(config.temp_dir, "manifests")
+          else
+            # The path is on the VM, so just point directly to it
+            config.manifests_path[1]
+          end
         end
 
         def verify_binary(binary)
           @machine.communicate.sudo(
             "which #{binary}",
-            :error_class => PuppetError,
-            :error_key => :not_detected,
-            :binary => binary)
+            error_class: PuppetError,
+            error_key: :not_detected,
+            binary: binary)
         end
 
         def run_puppet_apply
+          default_module_path = "/etc/puppet/modules"
+          if windows?
+            default_module_path = "/ProgramData/PuppetLabs/puppet/etc/modules"
+          end
+
           options = [config.options].flatten
           module_paths = @module_paths.map { |_, to| to }
           if !@module_paths.empty?
-            # Prepend the default module path
-            module_paths.unshift("/etc/puppet/modules")
+            # Append the default module path
+            module_paths << default_module_path
 
             # Add the command line switch to add the module path
-            options << "--modulepath '#{module_paths.join(':')}'"
+            module_path_sep = windows? ? ";" : ":"
+            options << "--modulepath '#{module_paths.join(module_path_sep)}'"
           end
 
           if @hiera_config_path
@@ -114,20 +138,30 @@ module VagrantPlugins
               facts << "FACTER_#{key}='#{value}'"
             end
 
+            # If we're on Windows, we need to use the PowerShell style
+            if windows?
+              facts.map! { |v| "`$env:#{v};" }
+            end
+
             facter = "#{facts.join(" ")} "
           end
 
-          command = "#{facter}puppet apply #{options} || [ $? -eq 2 ]"
+          command = "#{facter}puppet apply #{options}"
           if config.working_directory
-            command = "cd #{config.working_directory} && #{command}"
+            if windows?
+              command = "cd #{config.working_directory}; if (`$?) \{ #{command} \}"
+            else
+              command = "cd #{config.working_directory} && #{command}"
+            end
           end
 
-          @machine.env.ui.info I18n.t("vagrant.provisioners.puppet.running_puppet",
-                                      :manifest => config.manifest_file)
+          @machine.ui.info(I18n.t(
+            "vagrant.provisioners.puppet.running_puppet",
+            manifest: config.manifest_file))
 
-          @machine.communicate.sudo(command) do |type, data|
-            if !data.empty?
-              @machine.env.ui.info(data, :new_line => false, :prefix => false)
+          @machine.communicate.sudo(command, elevated: true, good_exit: [0,2]) do |type, data|
+            if !data.chomp.empty?
+              @machine.ui.info(data.chomp)
             end
           end
         end
@@ -139,6 +173,10 @@ module VagrantPlugins
               raise PuppetError, :missing_shared_folders
             end
           end
+        end
+
+        def windows?
+          @machine.config.vm.communicator == :winrm
         end
       end
     end

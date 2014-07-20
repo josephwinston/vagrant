@@ -26,7 +26,7 @@ module VagrantPlugins
         end
 
         def clear_shared_folders
-          info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             if line =~ /^SharedFolderNameMachineMapping\d+="(.+?)"$/
               execute("sharedfolder", "remove", @uuid, "--name", $1.to_s)
@@ -55,10 +55,10 @@ module VagrantPlugins
 
           # Return the details
           return {
-            :name => name,
-            :ip   => options[:adapter_ip],
-            :netmask => options[:netmask],
-            :dhcp => nil
+            name: name,
+            ip:   options[:adapter_ip],
+            netmask: options[:netmask],
+            dhcp: nil
           }
         end
 
@@ -74,7 +74,7 @@ module VagrantPlugins
 
           execute("list", "vms").split("\n").each do |line|
             if line =~ /^".+?"\s+\{(.+?)\}$/
-              info = execute("showvminfo", $1.to_s, "--machinereadable", :retryable => true)
+              info = execute("showvminfo", $1.to_s, "--machinereadable", retryable: true)
               info.split("\n").each do |inner_line|
                 if inner_line =~ /^hostonlyadapter\d+="(.+?)"$/
                   networks.delete($1.to_s)
@@ -105,12 +105,17 @@ module VagrantPlugins
 
             if adapter[:bridge]
               args.concat(["--bridgeadapter#{adapter[:adapter]}",
-                          adapter[:bridge]])
+                          adapter[:bridge], "--cableconnected#{adapter[:adapter]}", "on"])
             end
 
             if adapter[:hostonly]
               args.concat(["--hostonlyadapter#{adapter[:adapter]}",
-                          adapter[:hostonly]])
+                          adapter[:hostonly], "--cableconnected#{adapter[:adapter]}", "on"])
+            end
+
+            if adapter[:intnet]
+              args.concat(["--intnet#{adapter[:adapter]}",
+                          adapter[:intnet], "--cableconnected#{adapter[:adapter]}", "on"])
             end
 
             if adapter[:mac_address]
@@ -127,11 +132,10 @@ module VagrantPlugins
         end
 
         def execute_command(command)
-          raw(*command)
+          execute(*command)
         end
 
         def export(path)
-          # TODO: Progress
           execute("export", @uuid, "--output", path.to_s)
         end
 
@@ -162,7 +166,36 @@ module VagrantPlugins
           output = ""
           total = ""
           last  = 0
-          execute("import", ovf) do |type, data|
+
+          output = execute("import", "-n", ovf)
+          output =~ /Suggested VM name "(.+?)"/
+          suggested_name = $1.to_s
+          specified_name = "#{suggested_name}_#{(Time.now.to_f * 1000.0).to_i}_#{rand(100000)}" #Millisecond + Random
+
+          #Build the specified name param list
+          name_params = Array.new
+          name_params << "--vsys" << "0" << "--vmname" << specified_name
+
+          #Extract the disks list and build the disk target params
+          disk_params = Array.new
+          disks = output.scan(/(\d+): Hard disk image: source image=.+, target path=(.+),/)
+          disks.each do |unit_num, path|
+            disk_params << "--vsys"
+            disk_params << "0"  #Derive vsys num .. do we support OVF's with multiple machines?
+            disk_params << "--unit"
+            disk_params << unit_num
+            disk_params << "--disk"
+            if Vagrant::Util::Platform.windows?
+              # we use the block form of sub here to ensure that if the specified_name happens to end with a number (which is fairly likely) then
+              # we won't end up having the character sequence of a \ followed by a number be interpreted as a back reference.  For example, if
+              # specified_name were "abc123", then "\\abc123\\".reverse would be "\\321cba\\", and the \3 would be treated as a back reference by the sub
+              disk_params << path.reverse.sub("\\#{suggested_name}\\".reverse) { "\\#{specified_name}\\".reverse }.reverse # Replace only last occurrence              
+            else
+              disk_params << path.reverse.sub("/#{suggested_name}/".reverse, "/#{specified_name}/".reverse).reverse # Replace only last occurrence                
+            end
+          end
+
+          execute("import", ovf , *name_params, *disk_params) do |type, data|
             if type == :stdout
               # Keep track of the stdout so that we can get the VM name
               output << data
@@ -186,16 +219,9 @@ module VagrantPlugins
             end
           end
 
-          # Find the name of the VM name
-          if output !~ /Suggested VM name "(.+?)"/
-            @logger.error("Couldn't find VM name in the output.")
-            return nil
-          end
-
-          name = $1.to_s
-
           output = execute("list", "vms")
-          if output =~ /^"#{Regexp.escape(name)}" \{(.+?)\}$/
+
+          if output =~ /^"#{Regexp.escape(specified_name)}" \{(.+?)\}$/
             return $1.to_s
           end
 
@@ -213,7 +239,7 @@ module VagrantPlugins
 
           results = []
           current_nic = nil
-          info = execute("showvminfo", uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             # This is how we find the nic that a FP is attached to,
             # since this comes first.
@@ -259,7 +285,7 @@ module VagrantPlugins
 
         def read_guest_additions_version
           output = execute("guestproperty", "get", @uuid, "/VirtualBox/GuestAdd/Version",
-                           :retryable => true)
+                           retryable: true)
           if output =~ /^Value: (.+?)$/
             # Split the version by _ since some distro versions modify it
             # to look like this: 4.1.2_ubuntu, and the distro part isn't
@@ -270,7 +296,7 @@ module VagrantPlugins
 
           # If we can't get the guest additions version by guest property, try
           # to get it from the VM info itself.
-          info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             return $1.to_s if line =~ /^GuestAdditionsVersion="(.+?)"$/
           end
@@ -278,9 +304,22 @@ module VagrantPlugins
           return nil
         end
 
+        def read_guest_ip(adapter_number)
+          read_guest_property("/VirtualBox/GuestInfo/Net/#{adapter_number}/V4/IP")
+        end
+
+        def read_guest_property(property)
+          output = execute("guestproperty", "get", @uuid, property)
+          if output =~ /^Value: (.+?)$/
+            $1.to_s
+          else
+            raise Vagrant::Errors::VirtualBoxGuestPropertyNotFound, guest_property: property
+          end
+        end
+
         def read_host_only_interfaces
           dhcp = {}
-          execute("list", "dhcpservers", :retryable => true).split("\n\n").each do |block|
+          execute("list", "dhcpservers", retryable: true).split("\n\n").each do |block|
             info = {}
 
             block.split("\n").each do |line|
@@ -299,7 +338,7 @@ module VagrantPlugins
             dhcp[info[:network]] = info
           end
 
-          execute("list", "hostonlyifs", :retryable => true).split("\n\n").collect do |block|
+          execute("list", "hostonlyifs", retryable: true).split("\n\n").collect do |block|
             info = {}
 
             block.split("\n").each do |line|
@@ -322,7 +361,7 @@ module VagrantPlugins
         end
 
         def read_mac_address
-          info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             return $1.to_s if line =~ /^macaddress1="(.+?)"$/
           end
@@ -332,7 +371,7 @@ module VagrantPlugins
 
         def read_mac_addresses
           macs = {}
-          info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             if matcher = /^macaddress(\d+)="(.+?)"$/.match(line)
               adapter = matcher[1].to_i
@@ -344,7 +383,7 @@ module VagrantPlugins
         end
 
         def read_machine_folder
-          execute("list", "systemproperties", :retryable => true).split("\n").each do |line|
+          execute("list", "systemproperties", retryable: true).split("\n").each do |line|
             if line =~ /^Default machine folder:\s+(.+?)$/i
               return $1.to_s
             end
@@ -355,7 +394,7 @@ module VagrantPlugins
 
         def read_network_interfaces
           nics = {}
-          info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          info = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           info.split("\n").each do |line|
             if line =~ /^nic(\d+)="(.+?)"$/
               adapter = $1.to_i
@@ -382,7 +421,7 @@ module VagrantPlugins
         end
 
         def read_state
-          output = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+          output = execute("showvminfo", @uuid, "--machinereadable", retryable: true)
           if output =~ /^name="<inaccessible>"$/
             return :inaccessible
           elsif output =~ /^VMState="(.+?)"$/
@@ -394,7 +433,7 @@ module VagrantPlugins
 
         def read_used_ports
           ports = []
-          execute("list", "vms", :retryable => true).split("\n").each do |line|
+          execute("list", "vms", retryable: true).split("\n").each do |line|
             if line =~ /^".+?" \{(.+?)\}$/
               uuid = $1.to_s
 
@@ -412,7 +451,7 @@ module VagrantPlugins
 
         def read_vms
           results = {}
-          execute("list", "vms", :retryable => true).split("\n").each do |line|
+          execute("list", "vms", retryable: true).split("\n").each do |line|
             if line =~ /^"(.+?)" \{(.+?)\}$/
               results[$1.to_s] = $2.to_s
             end
@@ -426,7 +465,7 @@ module VagrantPlugins
         end
 
         def set_name(name)
-          execute("modifyvm", @uuid, "--name", name, :retryable => true)
+          execute("modifyvm", @uuid, "--name", name, retryable: true)
         end
 
         def share_folders(folders)
@@ -472,11 +511,34 @@ module VagrantPlugins
           end
 
           # If we reached this point then it didn't work out.
-          raise Vagrant::Errors::VBoxManageError, :command => command.inspect
+          raise Vagrant::Errors::VBoxManageError,
+            command: command.inspect,
+            stderr: r.stderr
         end
 
         def suspend
           execute("controlvm", @uuid, "savestate")
+        end
+
+        def unshare_folders(names)
+          names.each do |name|
+            begin
+              execute(
+                "sharedfolder", "remove", @uuid,
+                "--name", name,
+                "--transient")
+
+            execute(
+              "setextradata", @uuid,
+              "VBoxInternal2/SharedFoldersEnableSymlinksCreate/#{name}")
+            rescue Vagrant::Errors::VBoxManageError => e
+              if e.extra_data[:stderr].include?("VBOX_E_FILE_ERROR")
+                # The folder doesn't exist. ignore.
+              else
+                raise
+              end
+            end
+          end
         end
 
         def verify!
@@ -491,7 +553,23 @@ module VagrantPlugins
         end
 
         def vm_exists?(uuid)
-          raw("showvminfo", uuid).exit_code == 0
+          5.times do |i|
+            result = raw("showvminfo", uuid)
+            return true if result.exit_code == 0
+
+            # GH-2479: Sometimes this happens. In this case, retry. If
+            # we don't see this text, the VM really probably doesn't exist.
+            return false if !result.stderr.include?("CO_E_SERVER_EXEC_FAILURE")
+
+            # Sleep a bit though to give VirtualBox time to fix itself
+            sleep 2
+          end
+
+          # If we reach this point, it means that we consistently got the
+          # failure, do a standard vboxmanage now. This will raise an
+          # exception if it fails again.
+          execute("showvminfo", uuid)
+          return true
         end
       end
     end

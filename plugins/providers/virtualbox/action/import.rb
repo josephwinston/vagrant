@@ -8,7 +8,7 @@ module VagrantPlugins
 
         def call(env)
           env[:ui].info I18n.t("vagrant.actions.vm.import.importing",
-                               :name => env[:machine].box.name)
+                               name: env[:machine].box.name)
 
           # Import the virtual machine
           ovf_file = env[:machine].box.directory.join("box.ovf").to_s
@@ -33,7 +33,7 @@ module VagrantPlugins
         end
 
         def recover(env)
-          if env[:machine].provider.state.id != :not_created
+          if env[:machine].state.id != :not_created
             return if env["vagrant.error"].is_a?(Vagrant::Errors::VagrantError)
 
             # If we're not supposed to destroy on error then just return

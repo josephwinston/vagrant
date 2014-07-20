@@ -1,7 +1,7 @@
 require File.expand_path("../../../base", __FILE__)
 
 describe Vagrant::Action::Builder do
-  let(:data) { { :data => [] } }
+  let(:data) { { data: [] } }
 
   # This returns a proc that can be used with the builder
   # that simply appends data to an array in the env.
@@ -16,10 +16,24 @@ describe Vagrant::Action::Builder do
     result
   end
 
+  def wrapper_proc(data)
+    Class.new do
+      def initialize(app, env)
+        @app = app
+      end
+
+      define_method(:call) do |env|
+        env[:data] << "#{data}_in"
+        @app.call(env)
+        env[:data] << "#{data}_out"
+      end
+    end
+  end
+
   context "copying" do
     it "should copy the stack" do
       copy = subject.dup
-      copy.stack.object_id.should_not == subject.stack.object_id
+      expect(copy.stack.object_id).not_to eq(subject.stack.object_id)
     end
   end
 
@@ -31,7 +45,7 @@ describe Vagrant::Action::Builder do
       subject = described_class.build(proc)
       subject.call(data)
 
-      data[:data].should == true
+      expect(data[:data]).to eq(true)
     end
   end
 
@@ -43,7 +57,7 @@ describe Vagrant::Action::Builder do
       subject.use proc
       subject.call(data)
 
-      data[:data].should == true
+      expect(data[:data]).to eq(true)
     end
 
     it "should be able to add multiple items" do
@@ -55,8 +69,8 @@ describe Vagrant::Action::Builder do
       subject.use proc2
       subject.call(data)
 
-      data[:one].should == true
-      data[:two].should == true
+      expect(data[:one]).to eq(true)
+      expect(data[:two]).to eq(true)
     end
 
     it "should be able to add another builder" do
@@ -73,7 +87,7 @@ describe Vagrant::Action::Builder do
 
       # Call the 2nd and verify results
       two.call(data)
-      data[:one].should == true
+      expect(data[:one]).to eq(true)
     end
   end
 
@@ -83,7 +97,7 @@ describe Vagrant::Action::Builder do
       subject.insert(0, appender_proc(2))
       subject.call(data)
 
-      data[:data].should == [2, 1]
+      expect(data[:data]).to eq([2, 1])
     end
 
     it "can insert by name" do
@@ -96,7 +110,7 @@ describe Vagrant::Action::Builder do
       subject.insert_before :bar, appender_proc(3)
       subject.call(data)
 
-      data[:data].should == [1, 3, 2]
+      expect(data[:data]).to eq([1, 3, 2])
     end
 
     it "can insert next to a previous object" do
@@ -106,7 +120,7 @@ describe Vagrant::Action::Builder do
       subject.insert(proc2, appender_proc(3))
       subject.call(data)
 
-      data[:data].should == [1, 3, 2]
+      expect(data[:data]).to eq([1, 3, 2])
     end
 
     it "can insert before" do
@@ -114,7 +128,7 @@ describe Vagrant::Action::Builder do
       subject.insert_before 0, appender_proc(2)
       subject.call(data)
 
-      data[:data].should == [2, 1]
+      expect(data[:data]).to eq([2, 1])
     end
 
     it "can insert after" do
@@ -123,7 +137,7 @@ describe Vagrant::Action::Builder do
       subject.insert_after 0, appender_proc(2)
       subject.call(data)
 
-      data[:data].should == [1, 2, 3]
+      expect(data[:data]).to eq([1, 2, 3])
     end
 
     it "merges middleware stacks of other builders" do
@@ -152,7 +166,7 @@ describe Vagrant::Action::Builder do
       subject.insert(proc2, builder)
       subject.call(data)
 
-      data[:data].should == [1, "A1", "B1", 2, "B2", "A2"]
+      expect(data[:data]).to eq([1, "A1", "B1", 2, "B2", "A2"])
     end
 
     it "raises an exception if an invalid object given for insert" do
@@ -175,7 +189,7 @@ describe Vagrant::Action::Builder do
       subject.replace proc1, proc2
       subject.call(data)
 
-      data[:data].should == [2]
+      expect(data[:data]).to eq([2])
     end
 
     it "can replace by index" do
@@ -186,7 +200,7 @@ describe Vagrant::Action::Builder do
       subject.replace 0, proc2
       subject.call(data)
 
-      data[:data].should == [2]
+      expect(data[:data]).to eq([2])
     end
   end
 
@@ -199,7 +213,7 @@ describe Vagrant::Action::Builder do
       subject.delete proc1
       subject.call(data)
 
-      data[:data].should == [2]
+      expect(data[:data]).to eq([2])
     end
 
     it "can delete by index" do
@@ -210,14 +224,14 @@ describe Vagrant::Action::Builder do
       subject.delete 0
       subject.call(data)
 
-      data[:data].should == [2]
+      expect(data[:data]).to eq([2])
     end
   end
 
   describe "action hooks" do
     it "applies them properly" do
       hook = double("hook")
-      hook.stub(:apply) do |builder|
+      allow(hook).to receive(:apply) do |builder|
         builder.use appender_proc(2)
       end
 
@@ -226,17 +240,47 @@ describe Vagrant::Action::Builder do
       subject.use appender_proc(1)
       subject.call(data)
 
-      data[:data].should == [1, 2]
-      data[:action_hooks_already_ran].should == true
+      expect(data[:data]).to eq([1, 2])
+      expect(data[:action_hooks_already_ran]).to eq(true)
     end
 
     it "applies without prepend/append if it has already" do
       hook = double("hook")
-      hook.should_receive(:apply).with(anything, { :no_prepend_or_append => true }).once
+      expect(hook).to receive(:apply).with(anything, { no_prepend_or_append: true }).once
 
       data[:action_hooks] = [hook]
       data[:action_hooks_already_ran] = true
       subject.call(data)
+    end
+  end
+
+  describe "calling another app later" do
+    it "calls in the proper order" do
+      # We have to do this because inside the Class.new, it can't see these
+      # rspec methods...
+      described_klass = described_class
+      wrapper_proc    = self.method(:wrapper_proc)
+
+      wrapper = Class.new do
+        def initialize(app, env)
+          @app = app
+        end
+
+        define_method(:call) do |env|
+          inner = described_klass.new
+          inner.use wrapper_proc[2]
+          inner.use @app
+          inner.call(env)
+        end
+      end
+
+      subject.use wrapper_proc(1)
+      subject.use wrapper
+      subject.use wrapper_proc(3)
+      subject.call(data)
+
+      expect(data[:data]).to eq([
+        "1_in", "2_in", "3_in", "3_out", "2_out", "1_out"])
     end
   end
 end

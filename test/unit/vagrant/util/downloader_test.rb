@@ -9,31 +9,33 @@ describe Vagrant::Util::Downloader do
 
   let(:subprocess_result) do
     double("subprocess_result").tap do |result|
-      result.stub(:exit_code => exit_code)
-      result.stub(:stderr => "")
+      result.stub(exit_code: exit_code)
+      result.stub(stderr: "")
     end
   end
 
   subject { described_class.new(source, destination) }
 
   before :each do
-    Vagrant::Util::Subprocess.stub(:execute).and_return(subprocess_result)
+    allow(Vagrant::Util::Subprocess).to receive(:execute).and_return(subprocess_result)
   end
 
   describe "#download!" do
     let(:curl_options) {
-      ["--fail", "--location", "--max-redirs", "10", "--user-agent", described_class::USER_AGENT, "--output", destination, source, {}]
+      ["--fail", "--location", "--max-redirs", "10",
+       "--user-agent", described_class::USER_AGENT,
+       "--output", destination, source, {}]
     }
 
     context "with a good exit status" do
       let(:exit_code) { 0 }
 
       it "downloads the file and returns true" do
-        Vagrant::Util::Subprocess.should_receive(:execute).
+        expect(Vagrant::Util::Subprocess).to receive(:execute).
           with("curl", *curl_options).
           and_return(subprocess_result)
 
-        subject.download!.should be
+        expect(subject.download!).to be
       end
     end
 
@@ -41,7 +43,7 @@ describe Vagrant::Util::Downloader do
       let(:exit_code) { 1 }
 
       it "raises an exception" do
-        Vagrant::Util::Subprocess.should_receive(:execute).
+        expect(Vagrant::Util::Subprocess).to receive(:execute).
           with("curl", *curl_options).
           and_return(subprocess_result)
 
@@ -50,8 +52,43 @@ describe Vagrant::Util::Downloader do
       end
     end
 
-    context "with a UI" do
-      pending "tests for a UI"
+    context "with a username and password" do
+      it "downloads the file with the proper flags" do
+        original_source = source
+        source  = "http://foo:bar@baz.com/box.box"
+        subject = described_class.new(source, destination)
+
+        i = curl_options.index(original_source)
+        curl_options[i] = "http://baz.com/box.box"
+
+        i = curl_options.index("--output")
+        curl_options.insert(i, "foo:bar")
+        curl_options.insert(i, "-u")
+
+        expect(Vagrant::Util::Subprocess).to receive(:execute).
+          with("curl", *curl_options).
+          and_return(subprocess_result)
+
+        expect(subject.download!).to be_true
+      end
+    end
+  end
+
+  describe "#head" do
+    let(:curl_options) {
+      ["--fail", "--location", "--max-redirs", "10", "--user-agent", described_class::USER_AGENT, source, {}]
+    }
+
+    it "returns the output" do
+      subprocess_result.stub(stdout: "foo")
+
+      options = curl_options.dup
+      options.unshift("-I")
+
+      expect(Vagrant::Util::Subprocess).to receive(:execute).
+        with("curl", *options).and_return(subprocess_result)
+
+      expect(subject.head).to eq("foo")
     end
   end
 end

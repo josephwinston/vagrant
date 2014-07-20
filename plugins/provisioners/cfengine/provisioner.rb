@@ -5,6 +5,11 @@ module VagrantPlugins
   module CFEngine
     class Provisioner < Vagrant.plugin("2", :provisioner)
       def provision
+        if @machine.config.vm.communicator == :winrm
+          raise Vagrant::Errors::ProvisionerWinRMUnsupported,
+            name: "cfengine"
+        end
+
         @logger = Log4r::Logger.new("vagrant::plugins::cfengine")
 
         @logger.info("Checking for CFEngine installation...")
@@ -43,7 +48,7 @@ module VagrantPlugins
             color = type == :stdout ? :green : :red
             @machine.ui.info(
               data,
-              :color => color, :new_line => false, :prefix => false)
+              color: color, new_line: false, prefix: false)
           end
         end
       end

@@ -3,9 +3,6 @@ require 'log4r'
 require 'vagrant/action/hook'
 require 'vagrant/util/busy'
 
-# TODO:
-# * env.lock
-
 module Vagrant
   module Action
     class Runner
@@ -19,8 +16,16 @@ module Vagrant
 
       def run(callable_id, options=nil)
         callable = callable_id
-        callable = Builder.build(callable_id) if callable_id.kind_of?(Class)
-        raise ArgumentError, "Argument to run must be a callable object or registered action." if !callable || !callable.respond_to?(:call)
+        if !callable.kind_of?(Builder)
+          if callable_id.kind_of?(Class) || callable_id.respond_to?(:call)
+            callable = Builder.build(callable_id)
+          end
+        end
+
+        if !callable || !callable.respond_to?(:call)
+          raise ArgumentError,
+            "Argument to run must be a callable object or registered action."
+        end
 
         # Create the initial environment with the options given
         environment = {}

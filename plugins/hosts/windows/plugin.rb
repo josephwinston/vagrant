@@ -7,8 +7,18 @@ module VagrantPlugins
       description "Windows host support."
 
       host("windows") do
-        require File.expand_path("../host", __FILE__)
+        require_relative "host"
         Host
+      end
+
+      host_capability("windows", "nfs_installed") do
+        require_relative "cap/nfs"
+        Cap::NFS
+      end
+
+      host_capability("windows", "rdp_client") do
+        require_relative "cap/rdp"
+        Cap::RDP
       end
     end
   end

@@ -32,7 +32,23 @@ end
 Commands are defined with the `command` method, which takes as an argument
 the name of the command, in this case "foo." This means the command will be
 invokable via `vagrant foo`. Then the block argument returns a class that
-implements the `Vagrant.plugin(2, :command)` interface.
+implements the `Vagrant.plugin(2, "command")` interface.
+
+You can also define _non-primary commands_. These commands do not show
+up in the `vagrant -h` output. They only show up if the user explicitly
+does a `vagrant list-commands` which shows the full listing of available
+commands. This is useful for highly specific commands or plugins that a
+beginner to Vagrant would not be using anyways. Vagrant itself uses non-primary
+commands to expose some internal functions, as well.
+
+To define a non-primary command:
+
+```ruby
+command("foo", primary: false) do
+  require_relative "command"
+  Command
+end
+```
 
 ## Implementation
 
@@ -99,7 +115,7 @@ An example of using the helper, again pulled directly from the built-in
 `destroy` command:
 
 ```ruby
-with_target_vms(argv, :reverse => true) do |machine|
+with_target_vms(argv, reverse: true) do |machine|
   machine.action(:destroy)
 end
 ```

@@ -36,6 +36,26 @@ module VagrantPlugins
         Cap::MountVmwareSharedFolder
       end
 
+      guest_capability("darwin", "rsync_installed") do
+        require_relative "cap/rsync"
+        Cap::RSync
+      end
+
+      guest_capability("darwin", "rsync_command") do
+        require_relative "cap/rsync"
+        Cap::RSync
+      end
+
+      guest_capability("darwin", "rsync_post") do
+        require_relative "cap/rsync"
+        Cap::RSync
+      end
+
+      guest_capability("darwin", "rsync_pre") do
+        require_relative "cap/rsync"
+        Cap::RSync
+      end
+
       guest_capability("darwin", "shell_expand_guest_path") do
         require_relative "cap/shell_expand_guest_path"
         Cap::ShellExpandGuestPath

@@ -48,10 +48,11 @@ module VagrantPlugins
           chown_provisioning_folder
           verify_shared_folders(check)
           verify_binary(chef_binary_path("chef-solo"))
-          upload_encrypted_data_bag_secret if @config.encrypted_data_bag_secret_key_path
+          upload_encrypted_data_bag_secret
           setup_json
           setup_solo_config
           run_chef_solo
+          delete_encrypted_data_bag_secret
         end
 
         # Converts paths to a list of properly expanded paths with types.
@@ -105,37 +106,26 @@ module VagrantPlugins
         def share_folders(root_config, prefix, folders)
           folders.each do |type, local_path, remote_path|
             if type == :host
-              root_config.vm.synced_folder(
-                local_path, remote_path,
-                :id =>  "v-#{prefix}-#{self.class.get_and_update_counter(:shared_folder)}",
-                :nfs => @config.nfs)
-            end
-          end
-        end
+              opts = {}
+              opts[:id] = "v-#{prefix}-#{self.class.get_and_update_counter(:shared_folder)}"
+              opts[:type] = @config.synced_folder_type if @config.synced_folder_type
 
-        def upload_encrypted_data_bag_secret
-          @machine.env.ui.info I18n.t("vagrant.provisioners.chef.upload_encrypted_data_bag_secret_key")
-          @machine.communicate.tap do |comm|
-            comm.sudo("rm #{@config.encrypted_data_bag_secret}", :error_check => false)
-            comm.upload(encrypted_data_bag_secret_key_path,
-                        @config.encrypted_data_bag_secret)
+              root_config.vm.synced_folder(local_path, remote_path, opts)
+            end
           end
         end
 
         def setup_solo_config
           cookbooks_path = guest_paths(@cookbook_folders)
-          roles_path = guest_paths(@role_folders).first
+          roles_path = guest_paths(@role_folders)
           data_bags_path = guest_paths(@data_bags_folders).first
           environments_path = guest_paths(@environments_folders).first
           setup_config("provisioners/chef_solo/solo", "solo.rb", {
-            :node_name => @config.node_name,
-            :cookbooks_path => cookbooks_path,
-            :recipe_url => @config.recipe_url,
-            :roles_path => roles_path,
-            :data_bags_path => data_bags_path,
-            :encrypted_data_bag_secret => @config.encrypted_data_bag_secret,
-            :environments_path => environments_path,
-            :environment => @config.environment,
+            cookbooks_path: cookbooks_path,
+            recipe_url: @config.recipe_url,
+            roles_path: roles_path,
+            data_bags_path: data_bags_path,
+            environments_path: environments_path,
           })
         end
 
@@ -144,32 +134,28 @@ module VagrantPlugins
             @machine.ui.warn(I18n.t("vagrant.chef_run_list_empty"))
           end
 
-          options = [
-            "-c #{@config.provisioning_path}/solo.rb",
-            "-j #{@config.provisioning_path}/dna.json"
-          ]
-
-          if !@machine.env.ui.is_a?(Vagrant::UI::Colored)
-            options << "--no-color"
+          if @machine.guest.capability?(:wait_for_reboot)
+            @machine.guest.capability(:wait_for_reboot)
           end
 
-          command_env = @config.binary_env ? "#{@config.binary_env} " : ""
-          command_args = @config.arguments ? " #{@config.arguments}" : ""
-          command = "#{command_env}#{chef_binary_path("chef-solo")} " +
-            "#{options.join(" ")} #{command_args}"
+          command = build_command(:solo)
 
           @config.attempts.times do |attempt|
             if attempt == 0
-              @machine.env.ui.info I18n.t("vagrant.provisioners.chef.running_solo")
+              @machine.ui.info I18n.t("vagrant.provisioners.chef.running_solo")
             else
-              @machine.env.ui.info I18n.t("vagrant.provisioners.chef.running_solo_again")
+              @machine.ui.info I18n.t("vagrant.provisioners.chef.running_solo_again")
             end
 
-            exit_status = @machine.communicate.sudo(command, :error_check => false) do |type, data|
+            opts = { error_check: false, elevated: true }
+            exit_status = @machine.communicate.sudo(command, opts) do |type, data|
               # Output the data with the proper color based on the stream.
               color = type == :stdout ? :green : :red
-              @machine.env.ui.info(
-                data, :color => color, :new_line => false, :prefix => false)
+
+              data = data.chomp
+              next if data.empty?
+
+              @machine.ui.info(data, color: color)
             end
 
             # There is no need to run Chef again if it converges
@@ -187,10 +173,6 @@ module VagrantPlugins
               raise ChefError, :missing_shared_folders
             end
           end
-        end
-
-        def encrypted_data_bag_secret_key_path
-          File.expand_path(@config.encrypted_data_bag_secret_key_path, @machine.env.root_path)
         end
 
         protected

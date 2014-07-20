@@ -1,7 +1,12 @@
+require "pathname"
+
 require "vagrant"
 
 module VagrantPlugins
   module Chef
+    root = Pathname.new(File.expand_path("../", __FILE__))
+    autoload :CommandBuilder, root.join("command_builder")
+
     class Plugin < Vagrant.plugin("2")
       name "chef"
       description <<-DESC

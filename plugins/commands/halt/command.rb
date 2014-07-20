@@ -3,12 +3,18 @@ require 'optparse'
 module VagrantPlugins
   module CommandHalt
     class Command < Vagrant.plugin("2", :command)
+      def self.synopsis
+        "stops the vagrant machine"
+      end
+
       def execute
         options = {}
         options[:force] = false
 
         opts = OptionParser.new do |o|
-          o.banner = "Usage: vagrant halt [vm-name] [--force] [-h]"
+          o.banner = "Usage: vagrant halt [options] [name]"
+          o.separator ""
+          o.separator "Options:"
           o.separator ""
 
           o.on("-f", "--force", "Force shut down (equivalent of pulling power)") do |f|
@@ -21,8 +27,8 @@ module VagrantPlugins
         return if !argv
 
         @logger.debug("Halt command: #{argv.inspect} #{options.inspect}")
-        with_target_vms(argv) do |vm|
-          vm.action(:halt, :force_halt => options[:force])
+        with_target_vms(argv, reverse: true) do |vm|
+          vm.action(:halt, force_halt: options[:force])
         end
 
         # Success, exit status 0

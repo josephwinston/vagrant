@@ -25,9 +25,9 @@ describe Vagrant::Plugin::V2::Manager do
       instance.register(pB)
 
       result = instance.action_hooks(nil)
-      result.length.should == 2
-      result[0].call.should == "bar"
-      result[1].call.should == "baz"
+      expect(result.length).to eq(2)
+      expect(result[0].call).to eq("bar")
+      expect(result[1].call).to eq("baz")
     end
 
     it "should contain specific hooks with globally registered hooks" do
@@ -45,10 +45,10 @@ describe Vagrant::Plugin::V2::Manager do
       instance.register(pB)
 
       result = instance.action_hooks(:foo)
-      result.length.should == 3
-      result[0].call.should == "bar"
-      result[1].call.should == "bar_foo"
-      result[2].call.should == "baz"
+      expect(result.length).to eq(3)
+      expect(result[0].call).to eq("bar")
+      expect(result[1].call).to eq("bar_foo")
+      expect(result[2].call).to eq("baz")
     end
   end
 
@@ -64,9 +64,9 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.communicators.to_hash.length.should == 2
-    instance.communicators[:foo].should == "bar"
-    instance.communicators[:bar].should == "baz"
+    expect(instance.communicators.to_hash.length).to eq(2)
+    expect(instance.communicators[:foo]).to eq("bar")
+    expect(instance.communicators[:bar]).to eq("baz")
   end
 
   it "should enumerate registered configuration classes" do
@@ -81,9 +81,9 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.config.to_hash.length.should == 2
-    instance.config[:foo].should == "bar"
-    instance.config[:bar].should == "baz"
+    expect(instance.config.to_hash.length).to eq(2)
+    expect(instance.config[:foo]).to eq("bar")
+    expect(instance.config[:bar]).to eq("baz")
   end
 
   it "should enumerate registered guest classes" do
@@ -98,9 +98,9 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.guests.to_hash.length.should == 2
-    instance.guests[:foo].should == ["bar", nil]
-    instance.guests[:bar].should == ["baz", :foo]
+    expect(instance.guests.to_hash.length).to eq(2)
+    expect(instance.guests[:foo]).to eq(["bar", nil])
+    expect(instance.guests[:bar]).to eq(["baz", :foo])
   end
 
   it "should enumerate registered guest capabilities" do
@@ -115,9 +115,9 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.guest_capabilities.length.should == 2
-    instance.guest_capabilities[:foo][:foo].should == "bar"
-    instance.guest_capabilities[:bar][:foo].should == "baz"
+    expect(instance.guest_capabilities.length).to eq(2)
+    expect(instance.guest_capabilities[:foo][:foo]).to eq("bar")
+    expect(instance.guest_capabilities[:bar][:foo]).to eq("baz")
   end
 
   it "should enumerate registered host classes" do
@@ -126,15 +126,32 @@ describe Vagrant::Plugin::V2::Manager do
     end
 
     pB = plugin do |p|
-      p.host("bar") { "baz" }
+      p.host("bar", "foo") { "baz" }
     end
 
     instance.register(pA)
     instance.register(pB)
 
-    instance.hosts.to_hash.length.should == 2
-    instance.hosts[:foo].should == "bar"
-    instance.hosts[:bar].should == "baz"
+    expect(instance.hosts.to_hash.length).to eq(2)
+    expect(instance.hosts[:foo]).to eq(["bar", nil])
+    expect(instance.hosts[:bar]).to eq(["baz", :foo])
+  end
+
+  it "should enumerate registered host capabilities" do
+    pA = plugin do |p|
+      p.host_capability("foo", "foo") { "bar" }
+    end
+
+    pB = plugin do |p|
+      p.host_capability("bar", "foo") { "baz" }
+    end
+
+    instance.register(pA)
+    instance.register(pB)
+
+    expect(instance.host_capabilities.length).to eq(2)
+    expect(instance.host_capabilities[:foo][:foo]).to eq("bar")
+    expect(instance.host_capabilities[:bar][:foo]).to eq("baz")
   end
 
   it "should enumerate registered provider classes" do
@@ -149,9 +166,9 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.providers.to_hash.length.should == 2
-    instance.providers[:foo].should == ["bar", {}]
-    instance.providers[:bar].should == ["baz", { foo: "bar" }]
+    expect(instance.providers.to_hash.length).to eq(2)
+    expect(instance.providers[:foo]).to eq(["bar", { priority: 5 }])
+    expect(instance.providers[:bar]).to eq(["baz", { foo: "bar", priority: 5 }])
   end
 
   it "provides the collection of registered provider configs" do
@@ -167,8 +184,25 @@ describe Vagrant::Plugin::V2::Manager do
     instance.register(pA)
     instance.register(pB)
 
-    instance.provider_configs.to_hash.length.should == 2
-    instance.provider_configs[:foo].should == "foo"
-    instance.provider_configs[:bar].should == "bar"
+    expect(instance.provider_configs.to_hash.length).to eq(2)
+    expect(instance.provider_configs[:foo]).to eq("foo")
+    expect(instance.provider_configs[:bar]).to eq("bar")
+  end
+
+  it "should enumerate all registered synced folder implementations" do
+    pA = plugin do |p|
+      p.synced_folder("foo") { "bar" }
+    end
+
+    pB = plugin do |p|
+      p.synced_folder("bar", 50) { "baz" }
+    end
+
+    instance.register(pA)
+    instance.register(pB)
+
+    expect(instance.synced_folders.to_hash.length).to eq(2)
+    expect(instance.synced_folders[:foo]).to eq(["bar", 10])
+    expect(instance.synced_folders[:bar]).to eq(["baz", 50])
   end
 end

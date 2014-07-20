@@ -16,7 +16,7 @@ in a way that is portable, easy to use, and easy to understand.
 
 An important fact is that even if you configure other providers within
 a Vagrantfile, the Vagrantfile remains portable even to individuals who
-don't necessarilly have that provider installed.
+don't necessarily have that provider installed.
 
 For example, if you configure VMware Fusion and send it to an individual
 who doesn't have the VMware Fusion provider, Vagrant will silently ignore
@@ -60,7 +60,7 @@ Providers can also override non-provider specific configuration, such
 as `config.vm.box` and any other Vagrant configuration. This is done by
 specifying a second argument to `config.vm.provider`. This argument is
 just like the normal `config`, so set any settings you want, and they will
-be overriden only for that provider.
+be overridden only for that provider.
 
 Example:
 

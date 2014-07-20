@@ -1,7 +1,7 @@
 require File.expand_path("../../../base", __FILE__)
 
 describe Vagrant::Action::Warden do
-  let(:data) { { :data => [] } }
+  let(:data) { { data: [] } }
   let(:instance) { described_class.new }
 
   # This returns a proc that can be used with the builder
@@ -14,7 +14,7 @@ describe Vagrant::Action::Warden do
     instance = described_class.new([appender_proc(1), appender_proc(2)], data)
     instance.call(data)
 
-    data[:data].should == [1, 2]
+    expect(data[:data]).to eq([1, 2])
   end
 
   it "starts a recovery sequence when an exception is raised" do
@@ -48,7 +48,7 @@ describe Vagrant::Action::Warden do
 
     error_proc = Proc.new { raise "ERROR!" }
 
-    data     = { :recover => [] }
+    data     = { recover: [] }
     instance = described_class.new([Action, ActionTwo, error_proc], data)
 
     # The error should be raised back up
@@ -56,10 +56,10 @@ describe Vagrant::Action::Warden do
       to raise_error(RuntimeError)
 
     # Verify the recovery process goes in reverse order
-    data[:recover].should == [2, 1]
+    expect(data[:recover]).to eq([2, 1])
 
     # Verify that the error is available in the data
-    data["vagrant.error"].should be_kind_of(RuntimeError)
+    expect(data["vagrant.error"]).to be_kind_of(RuntimeError)
   end
 
   it "does not do a recovery sequence if SystemExit is raised" do
@@ -87,6 +87,6 @@ describe Vagrant::Action::Warden do
     expect { instance.call(data) }.to raise_error(SystemExit)
 
     # The recover should not have been called
-    data.has_key?(:recover).should_not be
+    expect(data.has_key?(:recover)).not_to be
   end
 end

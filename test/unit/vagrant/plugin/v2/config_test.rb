@@ -12,7 +12,9 @@ describe Vagrant::Plugin::V2::Config do
 
   let(:unset_value) { described_class.const_get("UNSET_VALUE") }
 
-  describe "merging" do
+  subject { foo_class.new }
+
+  describe "#merge" do
     it "should merge by default by simply copying each instance variable" do
       one = foo_class.new
       one.one = 2
@@ -22,8 +24,8 @@ describe Vagrant::Plugin::V2::Config do
       two.two = 5
 
       result = one.merge(two)
-      result.one.should == 2
-      result.two.should == 5
+      expect(result.one).to eq(2)
+      expect(result.two).to eq(5)
     end
 
     it "prefers any set value over an UNSET_VALUE" do
@@ -36,8 +38,8 @@ describe Vagrant::Plugin::V2::Config do
       two.two = 5
 
       result = one.merge(two)
-      result.one.should == 1
-      result.two.should == 5
+      expect(result.one).to eq(1)
+      expect(result.two).to eq(5)
     end
 
     it "doesn't merge values that start with a double underscore" do
@@ -52,9 +54,23 @@ describe Vagrant::Plugin::V2::Config do
 
       # Merge and verify
       result = one.merge(two)
-      result.one.should == 1
-      result.two.should == 2
-      result.instance_variable_get(:@__bar).should be_nil
+      expect(result.one).to eq(1)
+      expect(result.two).to eq(2)
+      expect(result.instance_variable_get(:@__bar)).to be_nil
+    end
+  end
+
+  describe "#method_missing" do
+    it "returns a DummyConfig object" do
+      expect(subject.i_should_not_exist).
+        to be_kind_of(Vagrant::Config::V2::DummyConfig)
+    end
+
+    it "raises an error if finalized (internally)" do
+      subject._finalize!
+
+      expect { subject.i_should_not_exist }.
+        to raise_error(NoMethodError)
     end
   end
 end

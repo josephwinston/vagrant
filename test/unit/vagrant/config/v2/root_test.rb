@@ -7,18 +7,18 @@ describe Vagrant::Config::V2::Root do
 
   it "should provide access to config objects" do
     foo_class = Class.new
-    map       = { :foo => foo_class }
+    map       = { foo: foo_class }
 
     instance  = described_class.new(map)
     foo       = instance.foo
-    foo.should be_kind_of(foo_class)
-    instance.foo.should eql(foo)
+    expect(foo).to be_kind_of(foo_class)
+    expect(instance.foo).to eql(foo)
   end
 
   it "record a missing key call if invalid key used" do
     instance = described_class.new({})
     expect { instance.foo }.to_not raise_error
-    instance.__internal_state["missing_key_calls"].include?("foo").should be
+    expect(instance.__internal_state["missing_key_calls"].include?("foo")).to be
   end
 
   it "returns a dummy config for a missing key" do
@@ -27,23 +27,23 @@ describe Vagrant::Config::V2::Root do
   end
 
   it "can be created with initial state" do
-    instance = described_class.new({}, { :foo => "bar" })
-    instance.foo.should == "bar"
+    instance = described_class.new({}, { foo: "bar" })
+    expect(instance.foo).to eq("bar")
   end
 
   it "should return internal state" do
     map      = { "foo" => Object, "bar" => Object }
     instance = described_class.new(map)
-    instance.__internal_state.should == {
+    expect(instance.__internal_state).to eq({
       "config_map"        => map,
       "keys"              => {},
       "missing_key_calls" => Set.new
-    }
+    })
   end
 
-  describe "finalization" do
-    it "should finalize un-used keys" do
-      foo_class = Class.new do
+  describe "#finalize!" do
+    it "should call #finalize!" do
+      foo_class = Class.new(Vagrant.plugin("2", "config")) do
         attr_accessor :foo
 
         def finalize!
@@ -51,22 +51,33 @@ describe Vagrant::Config::V2::Root do
         end
       end
 
-      map = { :foo => foo_class }
+      map = { foo: foo_class }
       instance = described_class.new(map)
       instance.finalize!
 
-      instance.foo.foo.should == "SET"
+      expect(instance.foo.foo).to eq("SET")
+    end
+
+    it "should call #_finalize!" do
+      klass = Class.new(Vagrant.plugin("2", "config"))
+
+      expect_any_instance_of(klass).to receive(:finalize!)
+      expect_any_instance_of(klass).to receive(:_finalize!)
+
+      map = { foo: klass }
+      instance = described_class.new(map)
+      instance.finalize!
     end
   end
 
   describe "validation" do
     let(:instance) do
-      map = { :foo => Object, :bar => Object }
+      map = { foo: Object, bar: Object }
       described_class.new(map)
     end
 
     it "should return nil if valid" do
-      instance.validate({}).should == {}
+      expect(instance.validate({})).to eq({})
     end
 
     it "should return errors if invalid" do
@@ -77,7 +88,7 @@ describe Vagrant::Config::V2::Root do
         env["errors"]
       end
 
-      instance.validate(env).should == errors
+      expect(instance.validate(env)).to eq(errors)
     end
 
     it "should merge errors via array concat if matching keys" do
@@ -98,7 +109,7 @@ describe Vagrant::Config::V2::Root do
         "bar" => ["bar"]
       }
 
-      instance.validate(env).should == expected_errors
+      expect(instance.validate(env)).to eq(expected_errors)
     end
 
     it "shouldn't count empty keys" do
@@ -109,7 +120,7 @@ describe Vagrant::Config::V2::Root do
         env["errors"]
       end
 
-      instance.validate(env).should == {}
+      expect(instance.validate(env)).to eq({})
     end
   end
 end

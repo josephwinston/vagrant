@@ -9,6 +9,14 @@ module Vagrant
       class Command
         include Util::SafePuts
 
+        # This should return a brief (60 characters or less) synopsis of what
+        # this command does. It will be used in the output of the help.
+        #
+        # @return [String]
+        def self.synopsis
+          ""
+        end
+
         def initialize(argv, env)
           @argv = argv
           @env  = env
@@ -51,7 +59,7 @@ module Vagrant
           opts.parse!(argv)
           return argv
         rescue OptionParser::InvalidOption
-          raise Errors::CLIInvalidOptions, :help => opts.help.chomp
+          raise Errors::CLIInvalidOptions, help: opts.help.chomp
         end
 
         # Yields a VM for each target VM for the command.
@@ -74,15 +82,27 @@ module Vagrant
           @logger.debug(" -- names: #{names.inspect}")
           @logger.debug(" -- options: #{options.inspect}")
 
-          # Using VMs requires a Vagrant environment to be properly setup
-          raise Errors::NoEnvironmentError if !@env.root_path
-
           # Setup the options hash
           options ||= {}
 
           # Require that names be an array
           names ||= []
           names = [names] if !names.is_a?(Array)
+
+          # Determine if we require a local Vagrant environment. There are
+          # two cases that we require a local environment:
+          #
+          #   * We're asking for ANY/EVERY VM (no names given).
+          #
+          #   * We're asking for specific VMs, at least once of which
+          #     is NOT in the local machine index.
+          #
+          requires_local_env = false
+          requires_local_env = true if names.empty?
+          requires_local_env ||= names.any? { |n|
+            !@env.machine_index.include?(n)
+          }
+          raise Errors::NoEnvironmentError if requires_local_env && !@env.root_path
 
           # Cache the active machines outside the loop
           active_machines = @env.active_machines
@@ -104,6 +124,20 @@ module Vagrant
             provider_to_use = options[:provider]
             provider_to_use = provider_to_use.to_sym if provider_to_use
 
+            # If we have this machine in our index, load that.
+            entry = @env.machine_index.get(name.to_s)
+            if entry
+              @env.machine_index.release(entry)
+
+              # Create an environment for this location and yield the
+              # machine in that environment. We silence warnings here because
+              # Vagrantfiles often have constants, so people would otherwise
+              # constantly (heh) get "already initialized constant" warnings.
+              env = entry.vagrant_env(
+                @env.home_path, ui_class: @env.ui_class)
+              next env.machine(entry.name.to_sym, entry.provider.to_sym)
+            end
+
             active_machines.each do |active_name, active_provider|
               if name == active_name
                 # We found an active machine with the same name
@@ -112,9 +146,9 @@ module Vagrant
                   # We found an active machine with a provider that doesn't
                   # match the requested provider. Show an error.
                   raise Errors::ActiveMachineWithDifferentProvider,
-                    :name => active_name.to_s,
-                    :active_provider => active_provider.to_s,
-                    :requested_provider => provider_to_use.to_s
+                    name: active_name.to_s,
+                    active_provider: active_provider.to_s,
+                    requested_provider: provider_to_use.to_s
                 else
                   # Use this provider and exit out of the loop. One of the
                   # invariants [for now] is that there shouldn't be machines
@@ -156,7 +190,7 @@ module Vagrant
                 # String name, just look for a specific VM
                 @logger.debug("Finding machine that match name: #{name}")
                 machines << get_machine.call(name.to_sym)
-                raise Errors::VMNotFoundError, :name => name if !machines[0]
+                raise Errors::VMNotFoundError, name: name if !machines[0]
               end
             end
           else
@@ -180,7 +214,14 @@ module Vagrant
           machines.reverse! if options[:reverse]
 
           # Go through each VM and yield it!
+          color_order = [:default]
+          color_index = 0
+
           machines.each do |machine|
+            # Set the machine color
+            machine.ui.opts[:color] = color_order[color_index % color_order.length]
+            color_index += 1
+
             @logger.info("With machine: #{machine.name} (#{machine.provider.inspect})")
             yield machine
           end

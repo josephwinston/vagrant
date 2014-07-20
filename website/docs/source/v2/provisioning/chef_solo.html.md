@@ -7,11 +7,11 @@ sidebar_current: "provisioning-chefsolo"
 
 **Provisioner name: `chef_solo`**
 
-The chef solo provisioner allows you to provision the guest using
+The Chef Solo provisioner allows you to provision the guest using
 [Chef](http://www.opscode.com/chef/), specifically with
 [Chef Solo](http://docs.opscode.com/chef_solo.html).
 
-Chef solo is ideal for people who are already experienced with Chef,
+Chef Solo is ideal for people who are already experienced with Chef,
 already have Chef cookbooks, or are looking to learn Chef. Specifically,
 this documentation page will not go into how to use Chef or how to write
 Chef cookbooks, since Chef is a complete system that is beyond the scope
@@ -26,6 +26,41 @@ of a single page of documentation.
 	</p>
 </div>
 
+## Options
+
+This section lists the complete set of available options for the Chef Solo
+provisioner. More detailed examples of how to use the provisioner are
+available below this section.
+
+Note that only the Chef-solo specific options are shown below. There is
+also a large set of [common options](/v2/provisioning/chef_common.html)
+that are available with both the Chef Solo and Chef client provisioners.
+
+* `cookbooks_path` (string or array) - A list of paths to where cookbooks
+  are stored. By default this is "cookbooks", expecting a cookbooks folder
+  relative to the Vagrantfile location.
+
+* `data_bags_path` (string) - A path where data bags are stored. By default, no
+  data bag path is set.
+
+* `environments_path` (string) - A path where environment definitions are
+  located. By default, no environments folder is set.
+
+* `environment` (string) - The environment you want the Chef run to be
+  a part of. This requires Chef 11.6.0 or later, and that `environments_path`
+  is set.
+
+* `recipe_url` (string) - URL to an archive of cookbooks that Chef will download
+  and use.
+
+* `roles_path` (string or array) - A list of paths where roles are defined.
+  By default this is empty. Multiple role directories are only supported by
+  Chef 11.8.0 and later.
+
+* `synced_folder_type` (string) - The type of synced folders to use when
+  sharing the data required for the provisioner to work properly. By default
+  this will use the default synced folder type. For example, you can set this
+  to "nfs" to use NFS synced folders.
 
 ## Specifying a Run List
 
@@ -98,6 +133,9 @@ end
 Just like the cookbooks path, the roles path is relative to the project
 root if a relative path is given.
 
+The configuration value can also be an array of paths on Chef 11.8.0 and newer.
+On older Chef versions only the first path is used.
+
 **Note:** The name of the role file must be the same as the role name.
 For example the `web` role must be in the `roles_path` as web.json or web.rb.
 This is required by Chef itself, and isn't a limitation imposed by
@@ -120,7 +158,7 @@ end
 ## Custom JSON Data
 
 Additional configuration data for Chef attributes can be passed in
-to Chef solo. This is done by setting the `json` property with a Ruby
+to Chef Solo. This is done by setting the `json` property with a Ruby
 hash (dictionary-like object), which is converted to JSON and passed
 in to Chef:
 
